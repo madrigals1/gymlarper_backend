@@ -4,7 +4,8 @@
     "ms-python.isort",
     "ms-python.python",
     "ms-python.vscode-pylance",
-    "ms-python.debugpy"
+    "ms-python.debugpy",
+    "tamasfe.even-better-toml"
   ],
   "unwantedRecommendations": [
     // Superseded by ms-python.black-formatter.

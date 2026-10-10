@@ -1,0 +1,20 @@
+# Development overrides. Docker Compose merges this automatically, so plain
+#   docker compose up
+# runs in dev mode with live reload and your working tree mounted.
+#
+# For production on your server use the base docker-compose.yml alone:
+#   docker compose -f docker-compose.yml --profile prod up -d --build
+
+services:
+  api:
+    volumes:
+      - .:/app
+    environment:
+      DJANGO_DEBUG: "true"
+      DJANGO_SECURE_SSL_REDIRECT: "false"
+      DJANGO_SECURE_HSTS_SECONDS: "0"
+      COLLECT_STATIC: "false"
+    command: >
+      sh -c "python manage.py runserver 0.0.0.0:8000"
+    stdin_open: true
+    tty: true

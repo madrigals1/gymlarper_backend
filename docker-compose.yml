@@ -1,0 +1,92 @@
+# Gymlarper - Django + DRF + PostgreSQL
+#
+#   docker compose up --build          # api + db
+#   docker compose --profile prod up   # adds the TLS reverse proxy
+#
+# Copy .env.example to .env before the first run.
+
+name: gymlarper
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-gymlarper}
+      POSTGRES_USER: ${POSTGRES_USER:-gymlarper}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-gymlarper} -d ${POSTGRES_DB:-gymlarper}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    # No host port for Postgres on purpose: the API reaches it over the compose
+    # network, and publishing it only widens the attack surface. For a GUI, run
+    #   docker compose exec db psql -U gymlarper -d gymlarper
+    networks: [backend]
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?set DJANGO_SECRET_KEY in .env}
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-false}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1}
+      DJANGO_CORS_ALLOWED_ORIGINS: ${DJANGO_CORS_ALLOWED_ORIGINS:-}
+      DJANGO_PUBLIC_ORIGIN: ${DJANGO_PUBLIC_ORIGIN:-http://localhost:8000}
+      DJANGO_TIME_ZONE: ${DJANGO_TIME_ZONE:-UTC}
+      DJANGO_USE_SQLITE: "false"
+
+      POSTGRES_DB: ${POSTGRES_DB:-gymlarper}
+      POSTGRES_USER: ${POSTGRES_USER:-gymlarper}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+
+      GOOGLE_CLIENT_IDS: ${GOOGLE_CLIENT_IDS:-}
+      GOOGLE_HD_ORG_DOMAIN: ${GOOGLE_HD_ORG_DOMAIN:-}
+
+      ACCESS_TOKEN_LIFETIME_MINUTES: ${ACCESS_TOKEN_LIFETIME_MINUTES:-60}
+      REFRESH_TOKEN_LIFETIME_DAYS: ${REFRESH_TOKEN_LIFETIME_DAYS:-30}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    ports:
+      # Loopback only in production; the proxy is the public entry point.
+      - "${API_BIND:-127.0.0.1}:${API_PORT:-8000}:8000"
+    networks: [backend]
+
+  proxy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    profiles: ["prod"]
+    depends_on:
+      - api
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-:80}
+      UPSTREAM_API: api:8000
+      # Optional: path the Flutter web build is served from, e.g. /app
+      WEB_ROOT: ${WEB_ROOT:-}
+    volumes:
+      - ./infra/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks: [backend]
+
+volumes:
+  db_data:
+  caddy_data:
+  caddy_config:
+
+networks:
+  backend:
+    driver: bridge

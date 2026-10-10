@@ -58,6 +58,45 @@ pipenv run python manage.py test --settings=config.test_settings
 
 ---
 
+## Database
+
+There is **no database container in this project**. It uses the shared Postgres
+from `~/projects/postgres` — the `postgres` container on `database_network`.
+
+```dotenv
+POSTGRES_DB=gymlarper
+POSTGRES_USER=gymlarper_admin
+POSTGRES_HOST=postgres     # container name on the mesh, NOT the published port
+POSTGRES_PORT=5432
+```
+
+The `gymlarper` database and `gymlarper_admin` role already exist there.
+Migrations run automatically on container start.
+
+```bash
+make db       # psql prompt on the shared server
+make backup   # pg_dump just the gymlarper database
+```
+
+### Least privilege (recommended)
+
+`gymlarper_admin` is a **superuser**, matching the convention your other apps
+use — and on `database_network` the API can therefore reach every database on
+that server. Verified: those credentials open the `memos` database and read it.
+The same holds for xfolio, telespam, l4d2_stats and the rest.
+
+That is fine while this API holds no untrusted input. Once the Flutter client
+is live, worth narrowing to what Django actually needs:
+
+```sql
+-- applied once, then set POSTGRES_PASSWORD in .env to the new value
+ALTER ROLE gymlarper_admin NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT;
+GRANT ALL PRIVILEGES ON DATABASE gymlarper TO gymlarper_admin;
+```
+
+Django only needs DDL/DML on its own database. Do **not** apply this blindly if
+other tooling relies on the superuser role — check first.
+
 ## Dependencies
 
 Managed with [pipenv](https://pipenv.pypa.io).
@@ -144,10 +183,15 @@ the dev server, and no bind mount of your source tree.
 The API joins your existing **`https_network`** (the same external network
 `cloudflared` and `nginx_proxy_manager` already sit on), driven by the
 `HTTPS_NETWORK` variable in `.env` — same convention as your other projects.
-`gymlarper-db-1` deliberately stays on a private network and is never attached
-to that mesh.
+The API also joins **`database_network`** to reach the shared Postgres — there
+is no private link any more, because the database lives in another project.
 
-Container name: **`gymlarper-api`**, listening on **8000**.
+Container name: **`gymlarper-api`** (8000).
+
+```
+https_network      cloudflared / nginx_proxy_manager  -> gymlarper-api:8000
+database_network   gymlarper-api                      -> postgres:5432
+```
 
 **Cloudflare Tunnel** — the tunnel is remotely managed, so add the public
 hostname in the Zero Trust dashboard:
@@ -167,6 +211,9 @@ Forward Port         8000
 Both containers resolve that name over `https_network`, so no host port is
 involved.
 
+To inspect the database, add a server in pgadmin4 pointing at `postgres:5432`,
+database `gymlarper`, user `gymlarper_admin`.
+
 **Settings that matter**
 
 - `DJANGO_ALLOWED_HOSTS` must list your **public** hostname — both proxies
@@ -182,7 +229,11 @@ involved.
 - Add a Cloudflare cache rule to **bypass `/api/*`**. Cloudflare does not cache
   JSON or non-GET by default, but an explicit bypass removes the doubt.
 - Anything else on `https_network` (portainer, grafana, memos, …) can reach the
-  API directly. That mesh is a flat network, so treat its members as trusted.
+  API directly. That mesh is flat, so treat its members as trusted.
+- The API **is** on `database_network`, because that is the only path to the
+  shared Postgres. See [Least privilege](#least-privilege-recommended) above:
+  `gymlarper_admin` is currently a superuser, so those credentials reach every
+  database on that server.
 
 ### After deploying
 
@@ -192,13 +243,9 @@ docker compose logs -f api
 docker compose exec api python manage.py createsuperuser
 ```
 
-**Backups** — the Postgres volume is the only stateful thing:
-
-```bash
-docker compose exec -T db pg_dump -U gymlarper gymlarper | gzip > backup-$(date +%F).sql.gz
-```
-
-Schedule that in cron. `docker compose down -v` deletes the volume.
+**Backups** — the data lives in the shared Postgres, so back it up from there
+(or use `make backup`). Schedule it in cron alongside the other projects that
+share that server.
 
 ---
 

@@ -45,8 +45,8 @@ logs:  ## Tail API logs
 shell:  ## Django shell
 	$(COMPOSE) exec api python manage.py shell
 
-db:  ## psql prompt
-	$(COMPOSE) exec db psql -U $${POSTGRES_USER:-gymlarper} -d $${POSTGRES_DB:-gymlarper}
+db:  ## psql prompt on the shared Postgres (from ~/projects/postgres)
+	docker exec -it postgres psql -h 127.0.0.1 -U $${POSTGRES_USER:-gymlarper_admin} -d $${POSTGRES_DB:-gymlarper}
 
 superuser:  ## Create a Django admin user
 	$(COMPOSE) exec api python manage.py createsuperuser
@@ -87,13 +87,12 @@ prod-down:  ## Stop the production stack
 prod-logs:  ## Tail production API logs
 	$(PROD_COMPOSE) logs -f api
 
-backup:  ## Dump Postgres to a timestamped file
+backup:  ## Dump the gymlarper database to a timestamped file
 	@mkdir -p backups
-	$(COMPOSE) exec -T db pg_dump -U $${POSTGRES_USER:-gymlarper} \
+	docker exec postgres pg_dump -h 127.0.0.1 -U $${POSTGRES_USER:-gymlarper_admin} \
 		$${POSTGRES_DB:-gymlarper} | gzip > backups/gymlarper-$$(date +%F-%H%M).sql.gz
 	@ls -lh backups/ | tail -3
 
-clean:  ## Remove containers and the database volume (DESTRUCTIVE)
-	@read -p "Delete the database volume too? [y/N] " ok && [ "$$ok" = y ] || exit 1
-	$(COMPOSE) down -v
+clean:  ## Remove this stack's containers (the database lives in another project)
+	$(COMPOSE) down
 	find . -name '__pycache__' -type d -prune -exec rm -rf {} +

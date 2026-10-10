@@ -1,10 +1,12 @@
 .PHONY: help up down build restart logs shell test smoke migrations makemigrations \
-        prod-up prod-down db backup superuser lint check clean \
+        prod-up prod-down prod-logs db backup superuser lint check clean \
         install install-dev lock
 
 COMPOSE      := docker compose
+# Production = the base file only, which skips the dev bind-mount override and
+# runs gunicorn. The api joins the external ${HTTPS_NETWORK} mesh either way,
+# so no extra -f flag is needed.
 PROD_COMPOSE := docker compose -f docker-compose.yml
-IMAGE        := gymlarper-api:dev
 
 # --- Python environment (pipenv) ------------------------------------------
 
@@ -76,11 +78,14 @@ makemigrations:  ## Generate migrations after changing models
 
 # --- Production ------------------------------------------------------------
 
-prod-up:  ## Start the production stack (gunicorn + Caddy), skips dev overrides
-	$(PROD_COMPOSE) --profile prod up -d --build
+prod-up:  ## Start the production stack (gunicorn, skips dev overrides)
+	$(PROD_COMPOSE) up -d --build
 
 prod-down:  ## Stop the production stack
-	$(PROD_COMPOSE) --profile prod down
+	$(PROD_COMPOSE) down
+
+prod-logs:  ## Tail production API logs
+	$(PROD_COMPOSE) logs -f api
 
 backup:  ## Dump Postgres to a timestamped file
 	@mkdir -p backups

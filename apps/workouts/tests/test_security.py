@@ -593,3 +593,50 @@ class ThrottlingTests(TestCase):
 
         for scope, rate in settings.REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"].items():
             self.assertIn("/", rate, f"throttle rate '{scope}' must look like '60/min'")
+
+
+class ProxyHeaderTests(TestCase):
+    """TLS terminates upstream, so the SSL redirect must follow X-Forwarded-Proto.
+
+    Both Cloudflare Tunnel and Nginx Proxy Manager set `X-Forwarded-Proto: https`
+    when forwarding to the origin.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.user = User.objects.create_user(username="ada", email="ada@example.com")
+
+    def test_trust_forwarded_proto_header_is_configured(self):
+        from django.conf import settings
+
+        self.assertEqual(settings.SECURE_PROXY_SSL_HEADER, ("HTTP_X_FORWARDED_PROTO", "https"))
+
+    @override_settings(SECURE_SSL_REDIRECT=True)
+    def test_https_via_forwarded_proto_is_served(self):
+        client = APIClient()
+        client.force_authenticate(self.user)
+        client.defaults["HTTP_X_FORWARDED_PROTO"] = "https"
+        response = client.get("/healthz")
+        self.assertEqual(response.status_code, 200)
+
+    @override_settings(SECURE_SSL_REDIRECT=True)
+    def test_plaintext_request_is_redirected(self):
+        client = APIClient()
+        client.force_authenticate(self.user)
+        response = client.get("/healthz")
+        self.assertEqual(response.status_code, 301)
+        self.assertTrue(response.headers["Location"].startswith("https://"))
+
+    def test_redirect_is_off_in_the_development_configuration(self):
+        # config/test_settings.py mirrors the dev .env. Note Django's test
+        # runner forces DEBUG=False itself, so assert on the redirect setting
+        # rather than on DEBUG.
+        from django.conf import settings
+
+        self.assertFalse(settings.SECURE_SSL_REDIRECT)
+
+    @override_settings(SECURE_SSL_REDIRECT=False)
+    def test_redirect_off_allows_plain_local_traffic(self):
+        client = APIClient()
+        client.force_authenticate(self.user)
+        self.assertEqual(client.get("/healthz").status_code, 200)

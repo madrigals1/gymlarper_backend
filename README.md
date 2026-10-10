@@ -3,6 +3,9 @@
 Django + Django REST Framework + PostgreSQL API for the Gymlarper workout
 tracker. The Flutter client lives separately in `~/projects/gymlarper_ui`.
 
+TLS terminates upstream — Cloudflare Tunnel and/or Nginx Proxy Manager. This
+stack ships no proxy of its own; the API is only ever reachable through yours.
+
 Offline-first: clients create records with their own UUIDs and reconcile via a
 delta-sync protocol, so nothing is ever lost to a dead zone in the gym.
 
@@ -103,7 +106,8 @@ matter most:
 | `GOOGLE_CLIENT_IDS` | comma-separated Web/Android/iOS client IDs. **Empty ⇒ all sign-ins are rejected.** |
 | `DJANGO_ALLOWED_HOSTS` | must list every host the proxy will use |
 | `DJANGO_CORS_ALLOWED_ORIGINS` | the Flutter **web** origin(s) |
-| `DJANGO_SECURE_SSL_REDIRECT` | auto-`false` when `DJANGO_DEBUG=true` |
+| `DJANGO_SECURE_SSL_REDIRECT` | auto-`false` when `DJANGO_DEBUG=true`; honours `X-Forwarded-Proto` |
+| `API_BIND` / `API_PORT` | where the API is published on the host (default `127.0.0.1:8000`) |
 | `POSTGRES_PASSWORD` | required; Compose refuses to start without it |
 
 ### Google OAuth setup
@@ -128,23 +132,65 @@ also accepts a comma-separated list if you prefer separate IDs.
 ```bash
 git clone <repo> /opt/gymlarper && cd /opt/gymlarper
 cp .env.example .env && $EDITOR .env      # secret key, DB password, domain, Google ID
-docker compose -f docker-compose.yml --profile prod up -d --build
+make prod-up
 ```
 
-Using `-f docker-compose.yml` deliberately **skips** `docker-compose.override.yml`,
-so you get gunicorn with 3 workers instead of the dev server, and no bind mount
-of your source tree.
+`make prod-up` runs `docker compose -f docker-compose.yml`, which deliberately
+skips `docker-compose.override.yml` — you get gunicorn with 3 workers instead of
+the dev server, and no bind mount of your source tree.
 
-Then:
+### Wiring up your tunnel / proxy
+
+The API joins your existing **`https_network`** (the same external network
+`cloudflared` and `nginx_proxy_manager` already sit on), driven by the
+`HTTPS_NETWORK` variable in `.env` — same convention as your other projects.
+`gymlarper-db-1` deliberately stays on a private network and is never attached
+to that mesh.
+
+Container name: **`gymlarper-api`**, listening on **8000**.
+
+**Cloudflare Tunnel** — the tunnel is remotely managed, so add the public
+hostname in the Zero Trust dashboard:
+
+```
+Service:  http://gymlarper-api:8000
+```
+
+**Nginx Proxy Manager** — add a Proxy Host:
+
+```
+Scheme               HTTP
+Forward Hostname     gymlarper-api
+Forward Port         8000
+```
+
+Both containers resolve that name over `https_network`, so no host port is
+involved.
+
+**Settings that matter**
+
+- `DJANGO_ALLOWED_HOSTS` must list your **public** hostname — both proxies
+  forward the original `Host` header to Django. Add `gymlarper-api` as well if
+  you want to `curl http://gymlarper-api:8000/healthz` from the mesh for
+  debugging; Django rejects any Host it does not recognise.
+- `DJANGO_SECURE_SSL_REDIRECT=true` is correct here. Django honours
+  `X-Forwarded-Proto: https` (set via `SECURE_PROXY_SSL_HEADER`), which both
+  proxies send, so only genuine plaintext gets redirected.
+- Because that header is trusted, do not expose the API directly to the
+  internet — otherwise a client could spoof it. The published port is bound to
+  `127.0.0.1` for exactly this reason.
+- Add a Cloudflare cache rule to **bypass `/api/*`**. Cloudflare does not cache
+  JSON or non-GET by default, but an explicit bypass removes the doubt.
+- Anything else on `https_network` (portainer, grafana, memos, …) can reach the
+  API directly. That mesh is a flat network, so treat its members as trusted.
+
+### After deploying
 
 ```bash
 curl -fsS https://your-domain/healthz     # {"status":"ok",...}
 docker compose logs -f api
 docker compose exec api python manage.py createsuperuser
 ```
-
-Point `SITE_ADDRESS` at a real domain and Caddy provisions TLS automatically.
-`WEB_ROOT` can serve the Flutter web build from the same origin.
 
 **Backups** — the Postgres volume is the only stateful thing:
 

@@ -1,7 +1,15 @@
 # Gymlarper - Django + DRF + PostgreSQL
 #
-#   docker compose up --build          # api + db
-#   docker compose --profile prod up   # adds the TLS reverse proxy
+#   docker compose up --build                      # dev (bind mount, runserver)
+#   docker compose -f docker-compose.yml up -d     # production (gunicorn)
+#
+# The API joins the shared https_network so both cloudflared and
+# nginx_proxy_manager can reach it by container name:
+#
+#   cloudflared  ->  http://gymlarper-api:8000
+#   npm proxy    ->  Forward Hostname gymlarper-api / Forward Port 8000
+#
+# Postgres stays on a private network and is never exposed to that mesh.
 #
 # Copy .env.example to .env before the first run.
 
@@ -32,6 +40,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    container_name: gymlarper-api
     restart: unless-stopped
     depends_on:
       db:
@@ -39,11 +48,19 @@ services:
     environment:
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?set DJANGO_SECRET_KEY in .env}
       DJANGO_DEBUG: ${DJANGO_DEBUG:-false}
+      # Must contain the PUBLIC hostname, because Cloudflare Tunnel and NPM
+      # forward the original Host header through to Django.
       DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1}
       DJANGO_CORS_ALLOWED_ORIGINS: ${DJANGO_CORS_ALLOWED_ORIGINS:-}
       DJANGO_PUBLIC_ORIGIN: ${DJANGO_PUBLIC_ORIGIN:-http://localhost:8000}
       DJANGO_TIME_ZONE: ${DJANGO_TIME_ZONE:-UTC}
       DJANGO_USE_SQLITE: "false"
+
+      # TLS terminates upstream, so Django honours X-Forwarded-Proto and can
+      # enforce https redirects itself. Set false only when the API is reached
+      # directly over plain HTTP.
+      DJANGO_SECURE_SSL_REDIRECT: ${DJANGO_SECURE_SSL_REDIRECT:-true}
+      DJANGO_SECURE_HSTS_SECONDS: ${DJANGO_SECURE_HSTS_SECONDS:-31536000}
 
       POSTGRES_DB: ${POSTGRES_DB:-gymlarper}
       POSTGRES_USER: ${POSTGRES_USER:-gymlarper}
@@ -58,35 +75,22 @@ services:
       REFRESH_TOKEN_LIFETIME_DAYS: ${REFRESH_TOKEN_LIFETIME_DAYS:-30}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
     ports:
-      # Loopback only in production; the proxy is the public entry point.
+      # Bound to loopback for local curl and for the smoke tests. Traffic from
+      # the tunnel/NPM arrives over https_network instead, so this mapping is
+      # not the production entry point.
       - "${API_BIND:-127.0.0.1}:${API_PORT:-8000}:8000"
-    networks: [backend]
-
-  proxy:
-    image: caddy:2.10-alpine
-    restart: unless-stopped
-    profiles: ["prod"]
-    depends_on:
-      - api
-    ports:
-      - "80:80"
-      - "443:443"
-    environment:
-      SITE_ADDRESS: ${SITE_ADDRESS:-:80}
-      UPSTREAM_API: api:8000
-      # Optional: path the Flutter web build is served from, e.g. /app
-      WEB_ROOT: ${WEB_ROOT:-}
-    volumes:
-      - ./infra/Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
-    networks: [backend]
+    networks:
+      - https
+      - backend
 
 volumes:
   db_data:
-  caddy_data:
-  caddy_config:
 
 networks:
+  https:
+    name: ${HTTPS_NETWORK:-https_network}
+    external: true
+  # Private: only the API and Postgres talk over this, and nothing outside the
+  # compose project can reach it.
   backend:
     driver: bridge

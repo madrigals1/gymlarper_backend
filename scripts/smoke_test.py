@@ -106,7 +106,9 @@ def main() -> int:
         status, body = api.post(
             "/api/v1/auth/google/", {"id_token": args.id_token, "platform": "smoke"}, auth=False
         )
-        if not result.check("Google sign-in accepted", status in (200, 201), f"got {status}: {body}"):
+        if not result.check(
+            "Google sign-in accepted", status in (200, 201), f"got {status}: {body}"
+        ):
             print(json.dumps(body, indent=2))
             return 1
         api.access = body["access"]
@@ -126,7 +128,9 @@ def main() -> int:
 
     print("\n== locations ==")
     status, defaults = api.get("/api/v1/locations/defaults/")
-    if result.check("GET /locations/defaults seeds home + work", status == 200 and len(defaults or []) == 2):
+    if result.check(
+        "GET /locations/defaults seeds home + work", status == 200 and len(defaults or []) == 2
+    ):
         result.check(
             "both defaults created",
             {item["kind"] for item in defaults} == {"home", "work"},
@@ -196,7 +200,9 @@ def main() -> int:
     status, workout = api.post(
         f"/api/v1/templates/{template_id}/instantiate/", {"location": location_id}
     )
-    if not result.check("started a workout from the template", status == 201, f"got {status}: {workout}"):
+    if not result.check(
+        "started a workout from the template", status == 201, f"got {status}: {workout}"
+    ):
         return 1
     workout_id = workout["id"]
     result.check("workout is active", workout.get("is_active") is True)
@@ -290,7 +296,9 @@ def main() -> int:
             ]
         },
     )
-    result.check("stale write is rejected as a conflict", stale["results"][0]["status"] == "conflict")
+    result.check(
+        "stale write is rejected as a conflict", stale["results"][0]["status"] == "conflict"
+    )
     result.check(
         "server data survived the stale write",
         stale["results"][0]["data"]["name"] == f"Renamed Offline {run_id}",
@@ -317,7 +325,9 @@ def main() -> int:
     result.check("counts the finished session", summary["totals"]["workouts"] >= 0)
 
     status, weekly = api.get("/api/v1/dashboard/weekly-volume/?weeks=4")
-    result.check("weekly volume returns a dense series", status == 200 and len(weekly["series"]) == 4)
+    result.check(
+        "weekly volume returns a dense series", status == 200 and len(weekly["series"]) == 4
+    )
 
     status, records = api.get("/api/v1/dashboard/personal-records/")
     result.check("personal records respond", status == 200)

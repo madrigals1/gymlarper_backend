@@ -22,6 +22,14 @@ whitenoise = "~=6.12.0"
 python_version = "3.14"
 
 [dev-packages]
-# Dev-only tooling goes here and is installed with `pipenv install --dev`.
-# Note: CI/Docker install with `--deploy` (runtime packages only).
-# The test suite uses Django's own runner, so nothing is needed yet.
+# Formatting and import ordering. Config lives in pyproject.toml.
+# Installed with `pipenv install --dev`; Docker never needs these because it
+# installs from Pipfile.lock with `--deploy` (runtime packages only).
+black = "~=26.1.0"
+isort = "~=7.0.0"
+
+[scripts]
+# Run these with `pipenv run <name>`. They execute inside .venv.
+test = "python manage.py test --settings=config.test_settings"
+lint = "sh -c 'black --check --diff . && isort --check-only --diff .'"
+format = "sh -c 'isort . && black .'"

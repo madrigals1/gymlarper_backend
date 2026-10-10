@@ -10,8 +10,8 @@ import os
 from datetime import timedelta
 from pathlib import Path
 
-from dotenv import load_dotenv
 from django.core.exceptions import ImproperlyConfigured
+from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -45,7 +45,7 @@ if not _secret_key:
     if not DEBUG:
         raise ImproperlyConfigured(
             "DJANGO_SECRET_KEY must be set when DJANGO_DEBUG is false. "
-            "Generate one with: python -c \"import secrets; print(secrets.token_urlsafe(64))\""
+            'Generate one with: python -c "import secrets; print(secrets.token_urlsafe(64))"'
         )
     _secret_key = "insecure-dev-only-key"
 SECRET_KEY = _secret_key

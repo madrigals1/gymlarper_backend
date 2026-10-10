@@ -26,13 +26,25 @@ to the shared Postgres from `~/projects/postgres`. Migrations run on boot.
 Requires Docker with the Compose v2 plugin. The container installs strictly
 from `Pipfile.lock`, so you need no Python on the host at all.
 
-### Commands worth remembering
+### Daily commands
 
-Most of this is plain `docker compose`. These five aren't obvious:
+Defined in the Pipfile's `[scripts]` section, run with `pipenv run`:
 
 ```bash
-# Tests: SQLite, so no database and no running server needed.
-# Or run them on the host with: pipenv run python manage.py test --settings=config.test_settings
+pipenv run test      # 130 tests, SQLite, no server needed
+pipenv run lint      # black --check + isort --check, fails on drift
+pipenv run format    # isort then black, in place
+```
+
+Editor users: `.vscode/` is committed, with `extensions.json` recommending
+black + isort and `settings.json` wiring them to `.venv` and formatting on
+save. Both read their settings from `pyproject.toml`, so the editor and the CLI
+agree by construction.
+
+Docker-side commands that aren't obvious:
+
+```bash
+# Tests without touching the host venv
 docker compose run --rm api python manage.py test --settings=config.test_settings
 
 # Migrations: -u root, or the container user cannot write the file
@@ -47,7 +59,7 @@ docker exec -it postgres psql -h 127.0.0.1 -U gymlarper_admin -d gymlarper
 docker exec postgres pg_dump -h 127.0.0.1 -U gymlarper_admin gymlarper | gzip > backup.sql.gz
 ```
 
-There is deliberately no Makefile. It would only wrap `docker compose`.
+There is deliberately no Makefile. It would only wrap these.
 
 ### Running Python on the host instead
 

@@ -151,7 +151,9 @@ class CrossTenantWriteTests(TenantTestCase):
 
     def test_cannot_finish_or_complete_another_users_records(self):
         self.assertEqual(
-            self.ada_api.post(f"/api/v1/workouts/{self.bob_workout.id}/finish/", {}, format="json").status_code,
+            self.ada_api.post(
+                f"/api/v1/workouts/{self.bob_workout.id}/finish/", {}, format="json"
+            ).status_code,
             404,
         )
         self.assertEqual(
@@ -241,7 +243,9 @@ class GoogleIdentityTests(TestCase):
             "name": "Ada",
         }
         api, patcher = self._signin(first)
-        self.assertEqual(api.post("/api/v1/auth/google/", {"id_token": "x"}, format="json").status_code, 201)
+        self.assertEqual(
+            api.post("/api/v1/auth/google/", {"id_token": "x"}, format="json").status_code, 201
+        )
 
         attacker = dict(first, sub="sub-ATTACKER", name="Mallory")
         patcher.return_value = attacker
@@ -268,7 +272,9 @@ class SessionRevocationTests(TestCase):
             "email_verified": True,
             "name": "Ada",
         }
-        patcher = mock.patch("apps.accounts.google._fetch_verified_claims", return_value=self.claims)
+        patcher = mock.patch(
+            "apps.accounts.google._fetch_verified_claims", return_value=self.claims
+        )
         patcher.start()
         self.addCleanup(patcher.stop)
 
@@ -286,7 +292,9 @@ class SessionRevocationTests(TestCase):
         self.assertEqual(self.authed().get("/api/v1/auth/me/").status_code, 200)
 
     def test_logout_invalidates_the_live_access_token(self):
-        self.assertEqual(self.authed().post("/api/v1/auth/logout/", {}, format="json").status_code, 204)
+        self.assertEqual(
+            self.authed().post("/api/v1/auth/logout/", {}, format="json").status_code, 204
+        )
         response = self.authed().get("/api/v1/auth/me/")
         self.assertEqual(response.status_code, 401)
 
@@ -301,13 +309,17 @@ class SessionRevocationTests(TestCase):
         self.assertEqual(client.get("/api/v1/auth/me/").status_code, 200)
 
         self.assertEqual(
-            self.authed().post(f"/api/v1/auth/devices/{session_id}/revoke/", {}, format="json").status_code,
+            self.authed()
+            .post(f"/api/v1/auth/devices/{session_id}/revoke/", {}, format="json")
+            .status_code,
             204,
         )
         self.assertEqual(client.get("/api/v1/auth/me/").status_code, 401)
 
     def test_refresh_after_logout_is_refused(self):
-        refresh = self.api.post("/api/v1/auth/google/", {"id_token": "x"}, format="json").json()["refresh"]
+        refresh = self.api.post("/api/v1/auth/google/", {"id_token": "x"}, format="json").json()[
+            "refresh"
+        ]
         self.authed().post("/api/v1/auth/logout/", {}, format="json")
         response = self.api.post("/api/v1/auth/refresh/", {"refresh": refresh}, format="json")
         self.assertEqual(response.status_code, 401)
@@ -327,7 +339,9 @@ class PasswordChangeTests(TestCase):
             "email_verified": True,
             "name": "Ada",
         }
-        patcher = mock.patch("apps.accounts.google._fetch_verified_claims", return_value=self.claims)
+        patcher = mock.patch(
+            "apps.accounts.google._fetch_verified_claims", return_value=self.claims
+        )
         self.patcher = patcher.start()
         self.addCleanup(patcher.stop)
 
@@ -363,7 +377,9 @@ class PasswordChangeTests(TestCase):
         self.assertTrue(self.user.has_usable_password())
 
     def test_reauth_with_a_different_google_identity_is_refused(self):
-        self.patcher.return_value = dict(self.claims, sub="sub-someone-else", email="other@example.com")
+        self.patcher.return_value = dict(
+            self.claims, sub="sub-someone-else", email="other@example.com"
+        )
         response = self.authed().post(
             "/api/v1/auth/password/",
             {"google_id_token": "fresh", "new_password": "a-good-password-1"},
@@ -407,8 +423,12 @@ class BulkUpdateTests(TestCase):
     def test_reordering_bumps_the_revision(self):
         exercise = Exercise.objects.create(user=self.user, name="Squat")
         template = WorkoutTemplate.objects.create(user=self.user, name="Legs")
-        first = TemplateItem.objects.create(user=self.user, template=template, exercise=exercise, position=0)
-        second = TemplateItem.objects.create(user=self.user, template=template, exercise=exercise, position=1)
+        first = TemplateItem.objects.create(
+            user=self.user, template=template, exercise=exercise, position=0
+        )
+        second = TemplateItem.objects.create(
+            user=self.user, template=template, exercise=exercise, position=1
+        )
 
         before = first.rev
         response = self.api.post(
@@ -458,7 +478,8 @@ class InputHardeningTests(TestCase):
         self.api = APIClient()
         self.api.force_authenticate(self.user)
         self.workout = Workout.objects.create(
-            user=self.user, started_at=timezone.now() - timedelta(hours=2),
+            user=self.user,
+            started_at=timezone.now() - timedelta(hours=2),
             finished_at=timezone.now(),
         )
         self.exercise = Exercise.objects.create(user=self.user, name="Leg Press")
@@ -514,9 +535,7 @@ class InputHardeningTests(TestCase):
             self.assertEqual(self.api.get(url).status_code, 200, url)
 
     def test_unknown_unit_falls_back_to_kg(self):
-        response = self.api.post(
-            "/api/v1/workouts/start/", {"unit": "stone"}, format="json"
-        )
+        response = self.api.post("/api/v1/workouts/start/", {"unit": "stone"}, format="json")
         self.assertEqual(response.status_code, 201)
         self.assertEqual(Workout.objects.get(pk=response.json()["id"]).unit, "kg")
 
@@ -541,6 +560,7 @@ class SequenceRaceTests(TestCase):
         self.assertEqual(next_sequence(user.id), 1)
         self.assertEqual(SyncState.objects.filter(user=user).count(), 1)
         self.assertEqual(next_sequence(user.id), 2)
+
 
 class ThrottlingTests(TestCase):
     """M2: the sign-in endpoint must resist credential-stuffing style abuse."""
@@ -572,7 +592,9 @@ class ThrottlingTests(TestCase):
             with mock.patch.dict(ScopedRateThrottle.THROTTLE_RATES, {"google_signin": "3/min"}):
                 with mock.patch.object(GoogleSignInView, "throttle_classes", [ScopedRateThrottle]):
                     codes = [
-                        api.post("/api/v1/auth/google/", {"id_token": "x"}, format="json").status_code
+                        api.post(
+                            "/api/v1/auth/google/", {"id_token": "x"}, format="json"
+                        ).status_code
                         for _ in range(6)
                     ]
         cache.clear()

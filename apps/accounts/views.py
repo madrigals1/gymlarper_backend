@@ -183,27 +183,43 @@ class RefreshView(APIView):
             token = RefreshToken(raw)
         except TokenError:
             return Response(
-                {"error": {"code": "invalid_refresh", "message": "Session expired.", "details": {}}},
+                {
+                    "error": {
+                        "code": "invalid_refresh",
+                        "message": "Session expired.",
+                        "details": {},
+                    }
+                },
                 status=status.HTTP_401_UNAUTHORIZED,
             )
 
         session = (
-            DeviceSession.objects.select_for_update()
-            .filter(token_hash=hash_token(raw))
-            .first()
+            DeviceSession.objects.select_for_update().filter(token_hash=hash_token(raw)).first()
         )
         if session is None or not session.is_active:
             # Either signed out, or the token was rotated away. Either way this
             # token must never be accepted again.
             return Response(
-                {"error": {"code": "session_revoked", "message": "Session is no longer valid.", "details": {}}},
+                {
+                    "error": {
+                        "code": "session_revoked",
+                        "message": "Session is no longer valid.",
+                        "details": {},
+                    }
+                },
                 status=status.HTTP_401_UNAUTHORIZED,
             )
 
         user = session.user
         if not user.is_active:
             return Response(
-                {"error": {"code": "account_disabled", "message": "Account is disabled.", "details": {}}},
+                {
+                    "error": {
+                        "code": "account_disabled",
+                        "message": "Account is disabled.",
+                        "details": {},
+                    }
+                },
                 status=status.HTTP_401_UNAUTHORIZED,
             )
 
@@ -241,7 +257,9 @@ class MeView(APIView):
 
 def _touch_session(request) -> None:
     """Keep 'last seen' honest for the active-devices screen."""
-    session_id = (getattr(request, "auth", None) or {}).get("sid") if hasattr(request, "auth") else None
+    session_id = (
+        (getattr(request, "auth", None) or {}).get("sid") if hasattr(request, "auth") else None
+    )
     if session_id:
         DeviceSession.objects.filter(pk=session_id).update(last_seen_at=timezone.now())
 

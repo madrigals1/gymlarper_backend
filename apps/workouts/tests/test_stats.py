@@ -108,8 +108,14 @@ class VolumeTests(TestCase):
         workout = make_workout(self.user, sets=[])
         item = workout.exercises.first()
         WorkoutSet.objects.create(
-            user=self.user, workout_exercise=item, reps=10, weight=Decimal("20"),
-            unit="kg", set_type="warmup", is_completed=True, completed_at=timezone.now(),
+            user=self.user,
+            workout_exercise=item,
+            reps=10,
+            weight=Decimal("20"),
+            unit="kg",
+            set_type="warmup",
+            is_completed=True,
+            completed_at=timezone.now(),
         )
         self.assertEqual(summary(self.user)["totals"]["volume_kg"], 0.0)
 
@@ -120,8 +126,12 @@ class VolumeTests(TestCase):
     def test_incomplete_sets_do_not_count(self):
         workout = make_workout(self.user, sets=[])
         WorkoutSet.objects.create(
-            user=self.user, workout_exercise=workout.exercises.first(),
-            reps=10, weight=Decimal("100"), unit="kg", is_completed=False,
+            user=self.user,
+            workout_exercise=workout.exercises.first(),
+            reps=10,
+            weight=Decimal("100"),
+            unit="kg",
+            is_completed=False,
         )
         self.assertEqual(summary(self.user)["totals"]["volume_kg"], 0.0)
 

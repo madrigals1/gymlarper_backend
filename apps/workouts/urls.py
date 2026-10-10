@@ -20,6 +20,10 @@ urlpatterns = [
     path("dashboard/personal-records/", views.personal_records, name="personal-records"),
     path("dashboard/volume-by-muscle/", views.volume_by_muscle, name="volume-by-muscle"),
     path("dashboard/machines/", views.machines, name="dashboard-machines"),
-    path("dashboard/exercise-progress/<uuid:exercise_id>/", views.exercise_progress, name="exercise-progress"),
+    path(
+        "dashboard/exercise-progress/<uuid:exercise_id>/",
+        views.exercise_progress,
+        name="exercise-progress",
+    ),
     path("", include(router.urls)),
 ]

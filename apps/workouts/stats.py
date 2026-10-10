@@ -47,17 +47,17 @@ def summary(user, *, lookback_days: int = 365) -> dict:
     now = timezone.now()
     since = now - timedelta(days=lookback_days)
 
-    workouts = Workout.objects.filter(
-        user=user, deleted_at__isnull=True, started_at__gte=since
-    )
+    workouts = Workout.objects.filter(user=user, deleted_at__isnull=True, started_at__gte=since)
     finished = workouts.filter(finished_at__isnull=False)
 
     total_workouts = finished.count()
     total_sets = _base_sets(user).filter(DONE, NOT_WARMUP).count()
 
     volume_kg = 0.0
-    for weight, unit, reps, is_bodyweight in _base_sets(user).filter(DONE, NOT_WARMUP).values_list(
-        "weight", "unit", "reps", "is_bodyweight"
+    for weight, unit, reps, is_bodyweight in (
+        _base_sets(user)
+        .filter(DONE, NOT_WARMUP)
+        .values_list("weight", "unit", "reps", "is_bodyweight")
     ):
         if weight is None:
             continue
@@ -86,11 +86,13 @@ def summary(user, *, lookback_days: int = 365) -> dict:
 
 
 def _volume_between(user, start, end) -> float:
-    queryset = _base_sets(user).filter(DONE, NOT_WARMUP).filter(
-        workout_exercise__workout__started_at__gte=start
+    queryset = (
+        _base_sets(user)
+        .filter(DONE, NOT_WARMUP)
+        .filter(workout_exercise__workout__started_at__gte=start)
     )
     if end is not None:
-        queryset = queryset.filter(workout_exercise__workout__started_at__lt= end)
+        queryset = queryset.filter(workout_exercise__workout__started_at__lt=end)
 
     total = 0.0
     for weight, unit, reps in queryset.values_list("weight", "unit", "reps"):
@@ -111,15 +113,17 @@ def _total_minutes(finished_queryset) -> int:
 def streaks(user) -> dict:
     """Consecutive days and consecutive weeks containing at least one workout."""
     days = list(
-        Workout.objects.filter(
-            user=user, deleted_at__isnull=True, finished_at__isnull=False
-        )
+        Workout.objects.filter(user=user, deleted_at__isnull=True, finished_at__isnull=False)
         .order_by("-started_at")
         .values_list("started_at", flat=True)
     )
     if not days:
-        return {"current_day_streak": 0, "longest_day_streak": 0, "current_week_streak": 0,
-                "last_workout_at": None}
+        return {
+            "current_day_streak": 0,
+            "longest_day_streak": 0,
+            "current_week_streak": 0,
+            "last_workout_at": None,
+        }
 
     day_keys = []
     for moment in days:
@@ -145,7 +149,9 @@ def streaks(user) -> dict:
         longest = max(longest, run)
         previous = key
 
-    weeks = sorted({_week_start(timezone.localtime(moment)).date() for moment in days}, reverse=True)
+    weeks = sorted(
+        {_week_start(timezone.localtime(moment)).date() for moment in days}, reverse=True
+    )
     week_streak = 0
     expected = _week_start(timezone.now()).date()
     while expected in weeks:
@@ -170,20 +176,16 @@ def weekly_volume(user, *, weeks: int = 12, unit: str = "kg") -> list[dict]:
     for started, weight, w_unit, reps in (
         _base_sets(user)
         .filter(DONE, NOT_WARMUP, workout_exercise__workout__started_at__gte=start)
-        .values_list(
-            "workout_exercise__workout__started_at", "weight", "unit", "reps"
-        )
+        .values_list("workout_exercise__workout__started_at", "weight", "unit", "reps")
     ):
         if weight is None:
             continue
         bucket = _week_start(started)
         buckets[bucket] += float(unit_utils.to_kg(weight, w_unit)) * reps
 
-    for started in (
-        Workout.objects.filter(
-            user=user, deleted_at__isnull=True, finished_at__isnull=False, started_at__gte=start
-        ).values_list("started_at", flat=True)
-    ):
+    for started in Workout.objects.filter(
+        user=user, deleted_at__isnull=True, finished_at__isnull=False, started_at__gte=start
+    ).values_list("started_at", flat=True):
         sessions[_week_start(started)] += 1
 
     target_unit = unit_utils.normalise_unit(unit)
@@ -257,9 +259,7 @@ def personal_records(user, *, limit: int = 50, unit: str = "kg") -> dict:
             entry["best_weight_kg"] = float(weight_kg)
             entry["best_weight"] = float(unit_utils.from_kg(weight_kg, target_unit))
 
-    records = sorted(
-        best.values(), key=lambda item: item["est_1rm_kg"], reverse=True
-    )[:limit]
+    records = sorted(best.values(), key=lambda item: item["est_1rm_kg"], reverse=True)[:limit]
     return {"unit": target_unit, "records": records}
 
 
@@ -311,13 +311,23 @@ def exercise_progress(user, exercise_id, *, unit: str = "kg", limit: int = 60) -
         rows.append(
             {
                 "date": started,
-                "weight": float(unit_utils.from_kg(weight_kg, target_unit)) if weight is not None else None,
+                "weight": (
+                    float(unit_utils.from_kg(weight_kg, target_unit))
+                    if weight is not None
+                    else None
+                ),
                 "weight_kg": float(weight_kg) if weight is not None else None,
                 "reps": reps,
                 "set_type": set_type,
-                "est_1rm": float(unit_utils.from_kg(
-                    weight_kg * (1 + reps / 30.0) if reps > 1 else weight_kg, target_unit
-                )) if weight is not None else None,
+                "est_1rm": (
+                    float(
+                        unit_utils.from_kg(
+                            weight_kg * (1 + reps / 30.0) if reps > 1 else weight_kg, target_unit
+                        )
+                    )
+                    if weight is not None
+                    else None
+                ),
                 "completed_at": completed_at,
             }
         )
@@ -327,9 +337,7 @@ def exercise_progress(user, exercise_id, *, unit: str = "kg", limit: int = 60) -
 def most_used_machines(user, *, limit: int = 10) -> list[dict]:
     """Which machines this athlete actually trains on."""
     return list(
-        WorkoutExercise.objects.filter(
-            user=user, deleted_at__isnull=True, machine_name__gt=""
-        )
+        WorkoutExercise.objects.filter(user=user, deleted_at__isnull=True, machine_name__gt="")
         .exclude(machine_name="")
         .values("machine_name")
         .annotate(times_used=Count("id"))

@@ -73,7 +73,9 @@ def api_exception_handler(exc, context):
         "error": {
             "code": code,
             "message": message,
-            "details": _flatten(detail) if not isinstance(detail, dict) or "detail" not in detail else {},
+            "details": (
+                _flatten(detail) if not isinstance(detail, dict) or "detail" not in detail else {}
+            ),
         }
     }
     return response

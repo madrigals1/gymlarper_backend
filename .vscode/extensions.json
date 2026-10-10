@@ -1,0 +1,16 @@
+{
+  "recommendations": [
+    "ms-python.black-formatter",
+    "ms-python.isort",
+    "ms-python.python",
+    "ms-python.vscode-pylance",
+    "ms-python.debugpy"
+  ],
+  "unwantedRecommendations": [
+    // Superseded by ms-python.black-formatter.
+    "ms-python.black",
+    // These fight black over the same files.
+    "ms-python.autopep8",
+    "ms-python.yapf"
+  ]
+}

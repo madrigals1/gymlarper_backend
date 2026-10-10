@@ -6,9 +6,7 @@ Postgres; the models avoid Postgres-only features, so behaviour matches.
 
 from config.settings import *  # noqa: F401,F403
 
-DATABASES = {
-    "default": {"ENGINE": "django.db.backends.sqlite3", "NAME": ":memory:"}
-}
+DATABASES = {"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": ":memory:"}}
 
 # Keep hashing cheap in tests.
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]

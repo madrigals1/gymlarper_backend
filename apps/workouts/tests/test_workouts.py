@@ -86,7 +86,11 @@ class SetLoggingTests(ApiTestCase):
 
     def test_complete_set_records_volume_and_1rm(self):
         workout_set = WorkoutSet.objects.create(
-            user=self.user, workout_exercise=self.workout_exercise, reps=10, weight=Decimal("100"), unit="kg"
+            user=self.user,
+            workout_exercise=self.workout_exercise,
+            reps=10,
+            weight=Decimal("100"),
+            unit="kg",
         )
         response = self.client.post(
             f"/api/v1/sets/{workout_set.id}/complete/", {"is_completed": True}, format="json"
@@ -101,8 +105,13 @@ class SetLoggingTests(ApiTestCase):
 
     def test_unchecking_clears_timestamp_and_volume(self):
         workout_set = WorkoutSet.objects.create(
-            user=self.user, workout_exercise=self.workout_exercise, reps=5,
-            weight=Decimal("60"), unit="kg", is_completed=True, completed_at=timezone.now(),
+            user=self.user,
+            workout_exercise=self.workout_exercise,
+            reps=5,
+            weight=Decimal("60"),
+            unit="kg",
+            is_completed=True,
+            completed_at=timezone.now(),
         )
         response = self.client.post(
             f"/api/v1/sets/{workout_set.id}/complete/", {"is_completed": False}, format="json"
@@ -112,10 +121,16 @@ class SetLoggingTests(ApiTestCase):
 
     def test_add_set_copies_previous(self):
         WorkoutSet.objects.create(
-            user=self.user, workout_exercise=self.workout_exercise, position=0,
-            reps=12, weight=Decimal("80"), unit="kg",
+            user=self.user,
+            workout_exercise=self.workout_exercise,
+            position=0,
+            reps=12,
+            weight=Decimal("80"),
+            unit="kg",
         )
-        response = self.client.post(f"/api/v1/workout-exercises/{self.workout_exercise.id}/add_set/", {}, format="json")
+        response = self.client.post(
+            f"/api/v1/workout-exercises/{self.workout_exercise.id}/add_set/", {}, format="json"
+        )
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.json()["reps"], 12)
         self.assertEqual(response.json()["weight"], "80.00")
@@ -123,15 +138,26 @@ class SetLoggingTests(ApiTestCase):
 
     def test_warmup_sets_do_not_count_towards_volume(self):
         WorkoutSet.objects.create(
-            user=self.user, workout_exercise=self.workout_exercise, reps=10, weight=Decimal("20"),
-            unit="kg", set_type="warmup", is_completed=True, completed_at=timezone.now(),
+            user=self.user,
+            workout_exercise=self.workout_exercise,
+            reps=10,
+            weight=Decimal("20"),
+            unit="kg",
+            set_type="warmup",
+            is_completed=True,
+            completed_at=timezone.now(),
         )
         self.assertEqual(self.workout.volume, 0.0)
 
     def test_pounds_are_normalised_to_kg(self):
         workout_set = WorkoutSet.objects.create(
-            user=self.user, workout_exercise=self.workout_exercise, reps=10,
-            weight=Decimal("225"), unit="lb", is_completed=True, completed_at=timezone.now(),
+            user=self.user,
+            workout_exercise=self.workout_exercise,
+            reps=10,
+            weight=Decimal("225"),
+            unit="lb",
+            is_completed=True,
+            completed_at=timezone.now(),
         )
         expected = float(Decimal("225") * Decimal("0.45359237")) * 10
         self.assertAlmostEqual(workout_set.volume_kg, expected, places=1)
@@ -144,12 +170,18 @@ class AddExerciseTests(ApiTestCase):
         exercise = self.make_exercise(name="Seated Cable Row")
 
         MachineSetup.objects.create(
-            user=self.user, exercise=exercise, location=home,
-            machine_name="Home rack", settings_json={"seat_height": 3, "cable_height": 6},
+            user=self.user,
+            exercise=exercise,
+            location=home,
+            machine_name="Home rack",
+            settings_json={"seat_height": 3, "cable_height": 6},
         )
         MachineSetup.objects.create(
-            user=self.user, exercise=exercise, location=work,
-            machine_name="Work tower", settings_json={"seat_height": 6},
+            user=self.user,
+            exercise=exercise,
+            location=work,
+            machine_name="Work tower",
+            settings_json={"seat_height": 6},
         )
 
         workout = Workout.objects.create(user=self.user, location=work, started_at=timezone.now())
@@ -167,8 +199,11 @@ class AddExerciseTests(ApiTestCase):
         exercise = self.make_exercise(name="Lat Pulldown")
         home = GymLocation.objects.create(user=self.user, name="Home gym", kind="home")
         MachineSetup.objects.create(
-            user=self.user, exercise=exercise, location=home,
-            machine_name="Home lat station", settings_json={"knee_pad": 5},
+            user=self.user,
+            exercise=exercise,
+            location=home,
+            machine_name="Home lat station",
+            settings_json={"knee_pad": 5},
         )
         workout = Workout.objects.create(user=self.user, started_at=timezone.now())
 
@@ -186,7 +221,9 @@ class AddExerciseTests(ApiTestCase):
         )
         workout = Workout.objects.create(user=self.user, started_at=timezone.now())
         response = self.client.post(
-            f"/api/v1/workouts/{workout.id}/exercises/", {"exercise": str(exercise.id)}, format="json"
+            f"/api/v1/workouts/{workout.id}/exercises/",
+            {"exercise": str(exercise.id)},
+            format="json",
         )
         item_id = response.json()["id"]
 
@@ -208,8 +245,14 @@ class TemplateTests(ApiTestCase):
             {
                 "name": "Legs day",
                 "items": [
-                    {"exercise": str(exercise.id), "position": 0, "target_sets": 4,
-                     "target_reps_min": 5, "target_reps_max": 5, "target_weight": "100.00"},
+                    {
+                        "exercise": str(exercise.id),
+                        "position": 0,
+                        "target_sets": 4,
+                        "target_reps_min": 5,
+                        "target_reps_max": 5,
+                        "target_weight": "100.00",
+                    },
                 ],
             },
             format="json",
@@ -218,7 +261,9 @@ class TemplateTests(ApiTestCase):
         template_id = response.json()["id"]
         self.assertEqual(response.json()["item_count"], 1)
 
-        started = self.client.post(f"/api/v1/templates/{template_id}/instantiate/", {}, format="json")
+        started = self.client.post(
+            f"/api/v1/templates/{template_id}/instantiate/", {}, format="json"
+        )
         self.assertEqual(started.status_code, 201)
         body = started.json()
         self.assertEqual(body["display_name"], "Legs day")
@@ -238,7 +283,12 @@ class TemplateTests(ApiTestCase):
         exercise = self.make_exercise()
         response = self.client.post(
             "/api/v1/templates/",
-            {"name": "Bad", "items": [{"exercise": str(exercise.id), "target_reps_min": 20, "target_reps_max": 5}]},
+            {
+                "name": "Bad",
+                "items": [
+                    {"exercise": str(exercise.id), "target_reps_min": 20, "target_reps_max": 5}
+                ],
+            },
             format="json",
         )
         self.assertEqual(response.status_code, 400)

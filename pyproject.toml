@@ -1,0 +1,22 @@
+# Tool configuration only. Dependencies live in Pipfile / Pipfile.lock.
+#
+# Note the deliberate absence of [project] and [build-system]: this is not an
+# installable package, just a home for formatter settings.
+
+[tool.black]
+line-length = 100
+target-version = ["py314"]
+# Django migrations are machine-generated; reformatting them only creates noise
+# in diffs and makes future `makemigrations` output confusing.
+extend-exclude = '''
+/(
+  .venv
+  | migrations
+)/
+'''
+
+[tool.isort]
+profile = "black"          # keeps isort and black from fighting over wrapping
+line_length = 100
+skip_glob = [".venv/*", "*/migrations/*"]
+known_first_party = ["apps", "config"]

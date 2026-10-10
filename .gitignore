@@ -26,7 +26,8 @@ db.sqlite3-journal
 !.env.example
 
 # Editors / OS
-.vscode/
+# .vscode/ IS tracked on purpose: extensions.json + settings.json pin the
+# formatters so every editor agrees with `pipenv run format`.
 .idea/
 .DS_Store
 *.swp

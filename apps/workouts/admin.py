@@ -15,7 +15,14 @@ from .models import (
 class TemplateItemInline(admin.TabularInline):
     model = TemplateItem
     extra = 0
-    fields = ("position", "exercise", "target_sets", "target_reps_min", "target_reps_max", "target_weight")
+    fields = (
+        "position",
+        "exercise",
+        "target_sets",
+        "target_reps_min",
+        "target_reps_max",
+        "target_weight",
+    )
 
 
 class WorkoutSetInline(admin.TabularInline):

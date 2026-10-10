@@ -39,7 +39,9 @@ class SyncTestCase(TestCase):
 class PushTests(SyncTestCase):
     def test_creates_with_client_supplied_uuid(self):
         chosen = uuid.uuid4()
-        response = self.push([self.op("location", {"name": "Home gym", "kind": "home"}, op_id=chosen)])
+        response = self.push(
+            [self.op("location", {"name": "Home gym", "kind": "home"}, op_id=chosen)]
+        )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["applied"], 1)
         self.assertEqual(response.json()["results"][0]["status"], "applied")
@@ -121,7 +123,13 @@ class PushTests(SyncTestCase):
     def test_client_cannot_forge_the_user_field(self):
         chosen = uuid.uuid4()
         self.push(
-            [self.op("location", {"name": "X", "kind": "gym", "user": str(self.other.id)}, op_id=chosen)]
+            [
+                self.op(
+                    "location",
+                    {"name": "X", "kind": "gym", "user": str(self.other.id)},
+                    op_id=chosen,
+                )
+            ]
         )
         self.assertEqual(GymLocation.objects.get(pk=chosen).user_id, self.user.id)
 
@@ -144,7 +152,12 @@ class PushTests(SyncTestCase):
         exercise = self.make_exercise()
         workout = Workout.objects.create(user=self.user, started_at=timezone.now())
         response = self.push(
-            [self.op("workout_exercise", {"workout": str(workout.id), "exercise": str(exercise.id), "position": 0})]
+            [
+                self.op(
+                    "workout_exercise",
+                    {"workout": str(workout.id), "exercise": str(exercise.id), "position": 0},
+                )
+            ]
         )
         self.assertEqual(response.json()["results"][0]["status"], "applied")
         stored = workout.exercises.get()

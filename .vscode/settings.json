@@ -1,0 +1,59 @@
+{
+  // ---- Interpreter -------------------------------------------------------
+  // pipenv keeps the venv at ./.venv (PIPENV_VENV_IN_PROJECT=1 in .env), so the
+  // formatters and Pylance resolve without any extra activation step.
+  "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
+  "python.terminal.activateEnvInCurrentTerminal": true,
+
+  // ---- Formatting on save -------------------------------------------------
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    // isort runs first, black second - that is the same order as
+    // `pipenv run format`. The explicit flag makes the order deterministic
+    // regardless of which extension claims the save action first.
+    "source.organizeImports": "explicit",
+    "source.fixAll": "explicit"
+  },
+
+  "[python]": {
+    "editor.defaultFormatter": "ms-python.black-formatter",
+    "editor.rulers": [100]
+  },
+
+  // ---- isort ---------------------------------------------------------------
+  // Reads [tool.isort] from pyproject.toml, which already sets profile=black
+  // so the two formatters agree on wrapping.
+  "isort.interpreterArguments": [
+    "--settings-path",
+    "${workspaceFolder}/pyproject.toml"
+  ],
+  // The editor applies isort for you on save; don't also flag it as an error.
+  "isort.check": false,
+  "isort.showErrors": false,
+
+  // ---- Django --------------------------------------------------------------
+  "[django]": {
+    "editor.tabSize": 4
+  },
+
+  // ---- Noise ---------------------------------------------------------------
+  // Never let the venv show up in search results or the file watcher.
+  "files.watcherExclude": {
+    "**/.venv/**": true
+  },
+  "search.exclude": {
+    "**/.venv": true,
+    "**/__pycache__": true,
+    "**/migrations": true
+  },
+  "files.exclude": {
+    "**/__pycache__": true,
+    "**/.pytest_cache": true
+  },
+
+  // Django management commands are the only real entry points.
+  "python.analysis.extraPaths": ["${workspaceFolder}"],
+
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true
+}

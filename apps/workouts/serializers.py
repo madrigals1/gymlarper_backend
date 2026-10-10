@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from apps.core.serializers import OwnerScopedRelationsMixin
 from django.db import transaction
 from django.utils import timezone
 from rest_framework import serializers
+
+from apps.core.serializers import OwnerScopedRelationsMixin
 
 from . import units as unit_utils
 from .models import (
@@ -57,12 +58,23 @@ class UniqueNamePerUserMixin(serializers.Serializer):
         return name
 
 
-class GymLocationSerializer(UniqueNamePerUserMixin, OwnerScopedRelationsMixin, serializers.ModelSerializer):
+class GymLocationSerializer(
+    UniqueNamePerUserMixin, OwnerScopedRelationsMixin, serializers.ModelSerializer
+):
     class Meta:
         model = GymLocation
         fields = (
-            "id", "rev", "name", "kind", "address", "notes", "is_archived", "color",
-            "created_at", "updated_at", "deleted_at",
+            "id",
+            "rev",
+            "name",
+            "kind",
+            "address",
+            "notes",
+            "is_archived",
+            "color",
+            "created_at",
+            "updated_at",
+            "deleted_at",
         )
         read_only_fields = ("id", "rev", "created_at", "updated_at", "deleted_at")
 
@@ -79,12 +91,24 @@ class GymLocationSerializer(UniqueNamePerUserMixin, OwnerScopedRelationsMixin, s
         return self._validate_unique_name(cleaned)
 
 
-class ExerciseSerializer(UniqueNamePerUserMixin, OwnerScopedRelationsMixin, serializers.ModelSerializer):
+class ExerciseSerializer(
+    UniqueNamePerUserMixin, OwnerScopedRelationsMixin, serializers.ModelSerializer
+):
     class Meta:
         model = Exercise
         fields = (
-            "id", "rev", "name", "muscle_group", "equipment", "notes", "is_machine",
-            "metrics", "archived", "created_at", "updated_at", "deleted_at",
+            "id",
+            "rev",
+            "name",
+            "muscle_group",
+            "equipment",
+            "notes",
+            "is_machine",
+            "metrics",
+            "archived",
+            "created_at",
+            "updated_at",
+            "deleted_at",
         )
         read_only_fields = ("id", "rev", "created_at", "updated_at", "deleted_at")
 
@@ -117,11 +141,28 @@ class MachineSetupSerializer(OwnerScopedRelationsMixin, serializers.ModelSeriali
     class Meta:
         model = MachineSetup
         fields = (
-            "id", "rev", "exercise", "exercise_name", "location", "location_name",
-            "machine_name", "settings_json", "notes",
-            "created_at", "updated_at", "deleted_at",
+            "id",
+            "rev",
+            "exercise",
+            "exercise_name",
+            "location",
+            "location_name",
+            "machine_name",
+            "settings_json",
+            "notes",
+            "created_at",
+            "updated_at",
+            "deleted_at",
         )
-        read_only_fields = ("id", "rev", "exercise_name", "location_name", "created_at", "updated_at", "deleted_at")
+        read_only_fields = (
+            "id",
+            "rev",
+            "exercise_name",
+            "location_name",
+            "created_at",
+            "updated_at",
+            "deleted_at",
+        )
 
     def validate_settings_json(self, value):
         """Machine dials are a free-form map, but must stay JSON-simple."""
@@ -155,10 +196,22 @@ class TemplateItemSerializer(OwnerScopedRelationsMixin, serializers.ModelSeriali
     class Meta:
         model = TemplateItem
         fields = (
-            "id", "rev", "template", "exercise", "exercise_name", "position",
-            "target_sets", "target_reps_min", "target_reps_max",
-            "target_weight", "target_rpe", "rest_seconds", "notes",
-            "created_at", "updated_at", "deleted_at",
+            "id",
+            "rev",
+            "template",
+            "exercise",
+            "exercise_name",
+            "position",
+            "target_sets",
+            "target_reps_min",
+            "target_reps_max",
+            "target_weight",
+            "target_rpe",
+            "rest_seconds",
+            "notes",
+            "created_at",
+            "updated_at",
+            "deleted_at",
         )
         read_only_fields = ("id", "rev", "exercise_name", "created_at", "updated_at", "deleted_at")
 
@@ -181,11 +234,31 @@ class WorkoutTemplateSerializer(
     class Meta:
         model = WorkoutTemplate
         fields = (
-            "id", "rev", "name", "description", "notes", "default_location",
-            "default_unit", "archived", "items_version",
-            "items", "item_count", "created_at", "updated_at", "deleted_at",
+            "id",
+            "rev",
+            "name",
+            "description",
+            "notes",
+            "default_location",
+            "default_unit",
+            "archived",
+            "items_version",
+            "items",
+            "item_count",
+            "created_at",
+            "updated_at",
+            "deleted_at",
         )
-        read_only_fields = ("id", "rev", "items", "item_count", "items_version", "created_at", "updated_at", "deleted_at")
+        read_only_fields = (
+            "id",
+            "rev",
+            "items",
+            "item_count",
+            "items_version",
+            "created_at",
+            "updated_at",
+            "deleted_at",
+        )
 
     def get_item_count(self, obj) -> int:
         return obj.items.filter(deleted_at__isnull=True).count()
@@ -246,11 +319,34 @@ class WorkoutSetSerializer(OwnerScopedRelationsMixin, serializers.ModelSerialize
     class Meta:
         model = WorkoutSet
         fields = (
-            "id", "rev", "workout_exercise", "position", "reps", "weight", "unit",
-            "set_type", "is_bodyweight", "rpe", "is_completed", "completed_at",
-            "notes", "volume_kg", "epley_1rm", "created_at", "updated_at", "deleted_at",
+            "id",
+            "rev",
+            "workout_exercise",
+            "position",
+            "reps",
+            "weight",
+            "unit",
+            "set_type",
+            "is_bodyweight",
+            "rpe",
+            "is_completed",
+            "completed_at",
+            "notes",
+            "volume_kg",
+            "epley_1rm",
+            "created_at",
+            "updated_at",
+            "deleted_at",
         )
-        read_only_fields = ("id", "rev", "volume_kg", "epley_1rm", "created_at", "updated_at", "deleted_at")
+        read_only_fields = (
+            "id",
+            "rev",
+            "volume_kg",
+            "epley_1rm",
+            "created_at",
+            "updated_at",
+            "deleted_at",
+        )
 
     def validate_unit(self, value):
         return unit_utils.normalise_unit(value)
@@ -259,7 +355,9 @@ class WorkoutSetSerializer(OwnerScopedRelationsMixin, serializers.ModelSerialize
         reps = attrs.get("reps", getattr(self.instance, "reps", 0) if self.instance else 0)
         if reps is None or reps < 0:
             raise serializers.ValidationError({"reps": "Reps cannot be negative."})
-        weight = attrs.get("weight", getattr(self.instance, "weight", None) if self.instance else None)
+        weight = attrs.get(
+            "weight", getattr(self.instance, "weight", None) if self.instance else None
+        )
         if weight is not None and weight < 0:
             raise serializers.ValidationError({"weight": "Weight cannot be negative."})
         return attrs
@@ -273,15 +371,39 @@ class WorkoutExerciseSerializer(OwnerScopedRelationsMixin, serializers.ModelSeri
     class Meta:
         model = WorkoutExercise
         fields = (
-            "id", "rev", "workout", "exercise", "exercise_name", "display_name",
-            "muscle_group", "equipment", "machine_name", "machine_settings",
-            "position", "target_sets", "target_reps_min", "target_reps_max",
-            "notes", "sets", "completed_sets",
-            "created_at", "updated_at", "deleted_at",
+            "id",
+            "rev",
+            "workout",
+            "exercise",
+            "exercise_name",
+            "display_name",
+            "muscle_group",
+            "equipment",
+            "machine_name",
+            "machine_settings",
+            "position",
+            "target_sets",
+            "target_reps_min",
+            "target_reps_max",
+            "notes",
+            "sets",
+            "completed_sets",
+            "created_at",
+            "updated_at",
+            "deleted_at",
         )
         read_only_fields = (
-            "id", "rev", "exercise_name", "display_name", "muscle_group", "equipment",
-            "sets", "completed_sets", "created_at", "updated_at", "deleted_at",
+            "id",
+            "rev",
+            "exercise_name",
+            "display_name",
+            "muscle_group",
+            "equipment",
+            "sets",
+            "completed_sets",
+            "created_at",
+            "updated_at",
+            "deleted_at",
         )
 
     def validate_machine_settings(self, value):
@@ -304,23 +426,53 @@ class WorkoutSerializer(OwnerScopedRelationsMixin, serializers.ModelSerializer):
     class Meta:
         model = Workout
         fields = (
-            "id", "rev", "template", "template_name", "location", "location_name",
-            "name", "notes", "started_at", "finished_at", "unit",
-            "bodyweight", "bodyweight_unit", "display_name", "is_active",
-            "duration_seconds", "volume", "exercises",
-            "created_at", "updated_at", "deleted_at",
+            "id",
+            "rev",
+            "template",
+            "template_name",
+            "location",
+            "location_name",
+            "name",
+            "notes",
+            "started_at",
+            "finished_at",
+            "unit",
+            "bodyweight",
+            "bodyweight_unit",
+            "display_name",
+            "is_active",
+            "duration_seconds",
+            "volume",
+            "exercises",
+            "created_at",
+            "updated_at",
+            "deleted_at",
         )
         read_only_fields = (
-            "id", "rev", "template_name", "location_name", "display_name", "is_active",
-            "duration_seconds", "volume", "exercises", "created_at", "updated_at", "deleted_at",
+            "id",
+            "rev",
+            "template_name",
+            "location_name",
+            "display_name",
+            "is_active",
+            "duration_seconds",
+            "volume",
+            "exercises",
+            "created_at",
+            "updated_at",
+            "deleted_at",
         )
 
     def validate_unit(self, value):
         return unit_utils.normalise_unit(value)
 
     def validate(self, attrs):
-        started = attrs.get("started_at", getattr(self.instance, "started_at", None) if self.instance else None)
-        finished = attrs.get("finished_at", getattr(self.instance, "finished_at", None) if self.instance else None)
+        started = attrs.get(
+            "started_at", getattr(self.instance, "started_at", None) if self.instance else None
+        )
+        finished = attrs.get(
+            "finished_at", getattr(self.instance, "finished_at", None) if self.instance else None
+        )
         if started and finished and finished < started:
             raise serializers.ValidationError(
                 {"finished_at": "A workout cannot finish before it started."}

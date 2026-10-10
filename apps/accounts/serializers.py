@@ -25,7 +25,14 @@ class UserProfileSerializer(OwnerScopedRelationsMixin, serializers.ModelSerializ
             "created_at",
             "updated_at",
         )
-        read_only_fields = ("id", "email", "display_name", "google_picture", "created_at", "updated_at")
+        read_only_fields = (
+            "id",
+            "email",
+            "display_name",
+            "google_picture",
+            "created_at",
+            "updated_at",
+        )
 
 
 class GoogleSignInSerializer(serializers.Serializer):

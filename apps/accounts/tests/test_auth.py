@@ -81,9 +81,7 @@ class AuthFlowTests(TestCase):
     def setUp(self):
         super().setUp()
         self.client = APIClient()
-        patcher = mock.patch(
-            "apps.accounts.google._fetch_verified_claims", return_value=CLAIMS
-        )
+        patcher = mock.patch("apps.accounts.google._fetch_verified_claims", return_value=CLAIMS)
         self.mock_claims = patcher.start()
         self.addCleanup(patcher.stop)
 

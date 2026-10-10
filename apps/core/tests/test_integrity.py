@@ -48,7 +48,7 @@ def _has_migrations(app_config) -> bool:
 
     try:
         return find_spec(f"{app_config.name}.migrations") is not None
-    except (ImportError, ValueError):  # pragma: no cover
+    except ImportError, ValueError:  # pragma: no cover
         return False
 
 

@@ -63,22 +63,22 @@ class SyncType:
 
 
 SYNC_TYPES: dict[str, SyncType] = {
-    "location": SyncType("location", GymLocation, GymLocationSerializer,
-                         immutable=("user",)),
-    "exercise": SyncType("exercise", Exercise, ExerciseSerializer,
-                         immutable=("user",)),
-    "machine_setup": SyncType("machine_setup", MachineSetup, MachineSetupSerializer,
-                              immutable=("user",)),
-    "template": SyncType("template", WorkoutTemplate, WorkoutTemplateSerializer,
-                         immutable=("user",)),
-    "template_item": SyncType("template_item", TemplateItem, TemplateItemSerializer,
-                              immutable=("user",)),
-    "workout": SyncType("workout", Workout, WorkoutSerializer,
-                        immutable=("user",)),
-    "workout_exercise": SyncType("workout_exercise", WorkoutExercise, WorkoutExerciseSerializer,
-                                 immutable=("user",)),
-    "workout_set": SyncType("workout_set", WorkoutSet, WorkoutSetSerializer,
-                            immutable=("user",)),
+    "location": SyncType("location", GymLocation, GymLocationSerializer, immutable=("user",)),
+    "exercise": SyncType("exercise", Exercise, ExerciseSerializer, immutable=("user",)),
+    "machine_setup": SyncType(
+        "machine_setup", MachineSetup, MachineSetupSerializer, immutable=("user",)
+    ),
+    "template": SyncType(
+        "template", WorkoutTemplate, WorkoutTemplateSerializer, immutable=("user",)
+    ),
+    "template_item": SyncType(
+        "template_item", TemplateItem, TemplateItemSerializer, immutable=("user",)
+    ),
+    "workout": SyncType("workout", Workout, WorkoutSerializer, immutable=("user",)),
+    "workout_exercise": SyncType(
+        "workout_exercise", WorkoutExercise, WorkoutExerciseSerializer, immutable=("user",)
+    ),
+    "workout_set": SyncType("workout_set", WorkoutSet, WorkoutSetSerializer, immutable=("user",)),
 }
 
 #: Children whose parent must exist and belong to the same athlete. Guards
@@ -274,7 +274,12 @@ def _conflict(instance, sync_type: SyncType) -> dict:
 
 
 def _reject(op_id, type_name, message: str, *, status: str = "rejected") -> dict:
-    return {"id": str(op_id) if op_id else None, "type": type_name, "status": status, "error": message}
+    return {
+        "id": str(op_id) if op_id else None,
+        "type": type_name,
+        "status": status,
+        "error": message,
+    }
 
 
 def build_pull(user, since: int, limit: int = MAX_PULL_PER_TYPE) -> dict:

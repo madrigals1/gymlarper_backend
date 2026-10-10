@@ -7,8 +7,8 @@ from django.db.models import Prefetch
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import status, viewsets
-from rest_framework.exceptions import ValidationError
 from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -44,11 +44,13 @@ from .sync import MAX_PULL_PER_TYPE, MAX_PUSH_OPS, SYNC_TYPES, apply_push, build
 MAX_SETS_PER_EXERCISE = 30
 
 
-def _safe_int(value, default: int, *, minimum: int = 1, maximum: int = MAX_SETS_PER_EXERCISE) -> int:
+def _safe_int(
+    value, default: int, *, minimum: int = 1, maximum: int = MAX_SETS_PER_EXERCISE
+) -> int:
     """Coerce request input to a bounded int instead of raising a 500."""
     try:
         parsed = int(value)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return default
     return max(minimum, min(parsed, maximum))
 
@@ -59,7 +61,7 @@ def _decimal_or_none(value):
         return None
     try:
         return Decimal(str(value))
-    except (ArithmeticError, ValueError, TypeError):
+    except ArithmeticError, ValueError, TypeError:
         raise ValidationError({"weight": "Enter a number."})
 
 
@@ -203,7 +205,9 @@ class WorkoutTemplateViewSet(OwnedModelViewSet):
         return queryset.prefetch_related(
             Prefetch(
                 "items",
-                queryset=TemplateItem.objects.filter(user=self.request.user, deleted_at__isnull=True)
+                queryset=TemplateItem.objects.filter(
+                    user=self.request.user, deleted_at__isnull=True
+                )
                 .select_related("exercise")
                 .order_by("position"),
             )
@@ -240,9 +244,11 @@ class WorkoutTemplateViewSet(OwnedModelViewSet):
         setups = {
             setup.exercise_id: setup
             for setup in MachineSetup.objects.filter(
-                user=user, deleted_at__isnull=True, exercise__in=[
+                user=user,
+                deleted_at__isnull=True,
+                exercise__in=[
                     item.exercise_id for item in template.items.filter(deleted_at__isnull=True)
-                ]
+                ],
             )
         }
         location_scoped = {
@@ -252,7 +258,11 @@ class WorkoutTemplateViewSet(OwnedModelViewSet):
         }
 
         created_exercises = []
-        for item in template.items.filter(deleted_at__isnull=True).select_related("exercise").order_by("position"):
+        for item in (
+            template.items.filter(deleted_at__isnull=True)
+            .select_related("exercise")
+            .order_by("position")
+        ):
             setup = location_scoped.get(item.exercise_id) or setups.get(item.exercise_id)
             workout_exercise = WorkoutExercise.objects.create(
                 user=user,
@@ -295,9 +305,9 @@ class WorkoutTemplateViewSet(OwnedModelViewSet):
             return Response({"detail": "'order' must be a list of template item ids."}, status=400)
         owned = {
             str(item_id)
-            for item_id in template.items.filter(
-                deleted_at__isnull=True
-            ).values_list("id", flat=True)
+            for item_id in template.items.filter(deleted_at__isnull=True).values_list(
+                "id", flat=True
+            )
         }
         order = [str(item_id) for item_id in order]
         moved = []
@@ -336,14 +346,16 @@ class WorkoutViewSet(OwnedModelViewSet):
         return queryset.prefetch_related(
             Prefetch(
                 "exercises",
-                queryset=WorkoutExercise.objects.filter(user=self.request.user, deleted_at__isnull=True)
+                queryset=WorkoutExercise.objects.filter(
+                    user=self.request.user, deleted_at__isnull=True
+                )
                 .order_by("position", "created_at")
                 .prefetch_related(
                     Prefetch(
                         "sets",
-                        queryset=WorkoutSet.objects.filter(user=self.request.user, deleted_at__isnull=True).order_by(
-                            "position", "created_at"
-                        ),
+                        queryset=WorkoutSet.objects.filter(
+                            user=self.request.user, deleted_at__isnull=True
+                        ).order_by("position", "created_at"),
                     )
                 ),
             )
@@ -353,19 +365,23 @@ class WorkoutViewSet(OwnedModelViewSet):
     def active(self, request):
         """The in-progress session, if any - this is what the app restores on launch."""
         workout = (
-            Workout.objects.filter(user=request.user, deleted_at__isnull=True, finished_at__isnull=True)
+            Workout.objects.filter(
+                user=request.user, deleted_at__isnull=True, finished_at__isnull=True
+            )
             .select_related("location", "template")
             .prefetch_related(
                 Prefetch(
                     "exercises",
-                    queryset=WorkoutExercise.objects.filter(user=self.request.user, deleted_at__isnull=True).order_by(
-                        "position", "created_at"
-                    ).prefetch_related(
+                    queryset=WorkoutExercise.objects.filter(
+                        user=self.request.user, deleted_at__isnull=True
+                    )
+                    .order_by("position", "created_at")
+                    .prefetch_related(
                         Prefetch(
                             "sets",
-                            queryset=WorkoutSet.objects.filter(user=self.request.user, deleted_at__isnull=True).order_by(
-                                "position", "created_at"
-                            ),
+                            queryset=WorkoutSet.objects.filter(
+                                user=self.request.user, deleted_at__isnull=True
+                            ).order_by("position", "created_at"),
                         )
                     ),
                 )
@@ -387,12 +403,16 @@ class WorkoutViewSet(OwnedModelViewSet):
 
         user = request.user
         profile = ensure_profile(user)
-        existing = Workout.objects.filter(user=user, deleted_at__isnull=True, finished_at__isnull=True).first()
+        existing = Workout.objects.filter(
+            user=user, deleted_at__isnull=True, finished_at__isnull=True
+        ).first()
         if existing:
             # Two Start taps must not produce two sessions.
             return Response(WorkoutSerializer(existing).data, status=status.HTTP_200_OK)
 
-        location = _owned_location(request, request.data.get("location")) or profile.default_location
+        location = (
+            _owned_location(request, request.data.get("location")) or profile.default_location
+        )
 
         workout = Workout.objects.create(
             user=user,
@@ -433,10 +453,15 @@ class WorkoutViewSet(OwnedModelViewSet):
         machine_name = request.data.get("machine_name")
         machine_settings = request.data.get("machine_settings")
         if machine_name is None or machine_settings is None:
-            location_id = (_owned_location(request, request.data.get("location")) or {}).id \
-                if request.data.get("location") else workout.location_id
+            location_id = (
+                (_owned_location(request, request.data.get("location")) or {}).id
+                if request.data.get("location")
+                else workout.location_id
+            )
             setup_qs = MachineSetup.objects.filter(
-                user=request.user, deleted_at__isnull=True, exercise_id=getattr(exercise_obj, "id", None)
+                user=request.user,
+                deleted_at__isnull=True,
+                exercise_id=getattr(exercise_obj, "id", None),
             )
             if location_id:
                 scoped = setup_qs.filter(location_id=location_id).order_by("-updated_at").first()
@@ -445,30 +470,42 @@ class WorkoutViewSet(OwnedModelViewSet):
                 setup = setup_qs.order_by("-updated_at").first()
             if setup:
                 machine_name = setup.machine_name if machine_name is None else machine_name
-                machine_settings = setup.settings_json if machine_settings is None else machine_settings
+                machine_settings = (
+                    setup.settings_json if machine_settings is None else machine_settings
+                )
 
-        item = TemplateItem.objects.filter(
-            user=request.user, deleted_at__isnull=True, exercise=exercise_obj
-        ).order_by("-updated_at").first()
+        item = (
+            TemplateItem.objects.filter(
+                user=request.user, deleted_at__isnull=True, exercise=exercise_obj
+            )
+            .order_by("-updated_at")
+            .first()
+        )
 
         workout_exercise = WorkoutExercise.objects.create(
             user=request.user,
             workout=workout,
             exercise=exercise_obj,
-            exercise_name=exercise_obj.name if exercise_obj else request.data.get("exercise_name", ""),
+            exercise_name=(
+                exercise_obj.name if exercise_obj else request.data.get("exercise_name", "")
+            ),
             muscle_group=exercise_obj.muscle_group if exercise_obj else "",
             equipment=exercise_obj.equipment if exercise_obj else "",
             machine_name=machine_name or "",
             machine_settings=machine_settings or {},
             position=position,
             target_sets=request.data.get("target_sets") or (item.target_sets if item else None),
-            target_reps_min=request.data.get("target_reps_min") or (item.target_reps_min if item else None),
-            target_reps_max=request.data.get("target_reps_max") or (item.target_reps_max if item else None),
+            target_reps_min=request.data.get("target_reps_min")
+            or (item.target_reps_min if item else None),
+            target_reps_max=request.data.get("target_reps_max")
+            or (item.target_reps_max if item else None),
         )
 
         target_sets = request.data.get("target_sets") or (item.target_sets if item else 3)
         default_reps = request.data.get("target_reps_min") or (item.target_reps_min if item else 8)
-        for index in range(min(_safe_int(target_sets, MAX_SETS_PER_EXERCISE), MAX_SETS_PER_EXERCISE)):
+        for index in range(
+            min(_safe_int(target_sets, MAX_SETS_PER_EXERCISE), MAX_SETS_PER_EXERCISE)
+        ):
             workout_set = WorkoutSet.objects.create(
                 user=request.user,
                 workout_exercise=workout_exercise,
@@ -494,10 +531,14 @@ class WorkoutViewSet(OwnedModelViewSet):
         order = [str(item_id) for item_id in order]
         for position, item_id in enumerate(order):
             if item_id not in owned:
-                return Response({"detail": f"Exercise {item_id} is not in this workout."}, status=400)
+                return Response(
+                    {"detail": f"Exercise {item_id} is not in this workout."}, status=400
+                )
             item = WorkoutExercise.objects.filter(pk=item_id, user=request.user).first()
             if item is None:
-                return Response({"detail": f"Exercise {item_id} is not in this workout."}, status=400)
+                return Response(
+                    {"detail": f"Exercise {item_id} is not in this workout."}, status=400
+                )
             item.position = position
             item.save()
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -577,20 +618,36 @@ class SyncPushView(APIView):
         ops = request.data.get("ops")
         if not isinstance(ops, list):
             return Response(
-                {"error": {"code": "invalid_payload", "message": "'ops' must be a list.", "details": {}}},
+                {
+                    "error": {
+                        "code": "invalid_payload",
+                        "message": "'ops' must be a list.",
+                        "details": {},
+                    }
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
         if len(ops) > MAX_PUSH_OPS:
             return Response(
-                {"error": {"code": "batch_too_large", "message": f"Send at most {MAX_PUSH_OPS} operations per batch.", "details": {}}},
+                {
+                    "error": {
+                        "code": "batch_too_large",
+                        "message": f"Send at most {MAX_PUSH_OPS} operations per batch.",
+                        "details": {},
+                    }
+                },
                 status=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
             )
         results = apply_push(request.user, ops)
         applied = sum(1 for item in results if item["status"] == "applied")
         conflicts = sum(1 for item in results if item["status"] == "conflict")
         return Response(
-            {"results": results, "applied": applied, "conflicts": conflicts,
-             "server_time": timezone.now()}
+            {
+                "results": results,
+                "applied": applied,
+                "conflicts": conflicts,
+                "server_time": timezone.now(),
+            }
         )
 
 
@@ -600,14 +657,20 @@ class SyncPullView(APIView):
     def get(self, request):
         try:
             since = int(request.query_params.get("since", 0))
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return Response(
-                {"error": {"code": "invalid_cursor", "message": "'since' must be an integer.", "details": {}}},
+                {
+                    "error": {
+                        "code": "invalid_cursor",
+                        "message": "'since' must be an integer.",
+                        "details": {},
+                    }
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
         try:
             limit = int(request.query_params.get("limit", MAX_PULL_PER_TYPE))
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             limit = MAX_PULL_PER_TYPE
 
         payload = build_pull(request.user, since, limit)
@@ -676,11 +739,7 @@ def volume_by_muscle(request):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def exercise_progress(request, exercise_id):
-    return Response(
-        stats_module.exercise_progress(
-            request.user, exercise_id, unit=_unit(request)
-        )
-    )
+    return Response(stats_module.exercise_progress(request.user, exercise_id, unit=_unit(request)))
 
 
 @api_view(["GET"])

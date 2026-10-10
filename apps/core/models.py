@@ -28,9 +28,7 @@ from django.utils import timezone
 class SyncState(models.Model):
     """Monotonic per-user sequence used as the delta-pull cursor."""
 
-    user = models.OneToOneField(
-        "auth.User", on_delete=models.CASCADE, related_name="sync_state"
-    )
+    user = models.OneToOneField("auth.User", on_delete=models.CASCADE, related_name="sync_state")
     seq = models.BigIntegerField(default=0)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -49,10 +47,7 @@ def next_sequence(user_id: int) -> int:
     devices can never be handed the same number.
     """
     with transaction.atomic():
-        row = (
-            SyncState.objects.filter(user_id=user_id)
-            .update(seq=models.F("seq") + 1)
-        )
+        row = SyncState.objects.filter(user_id=user_id).update(seq=models.F("seq") + 1)
         if not row:
             SyncState.objects.create(user_id=user_id, seq=1)
         return SyncState.objects.values_list("seq", flat=True).get(user_id=user_id)

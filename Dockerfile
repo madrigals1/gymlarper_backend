@@ -20,17 +20,33 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 # ---- Dependencies ----------------------------------------------------------
-# Copied on its own so the (slow) pip layer is reused whenever app code changes.
+# Copied on their own so the (slow) install layer is reused whenever app code
+# changes.
 FROM base AS builder
 
 RUN apt-get update \
     && apt-get install --no-install-recommends -y build-essential libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt ./
-RUN python -m venv /opt/venv \
-    && /opt/venv/bin/pip install --upgrade pip \
-    && /opt/venv/bin/pip install -r requirements.txt
+# pipenv lives in the builder's system Python only. Installing it into the venv
+# would ship it (and virtualenv, filelock, distlib...) into the final image.
+RUN pip install --no-cache-dir --root-user-action=ignore pipenv
+
+# The virtualenv is created at its *final* path. venv console scripts hardcode
+# an absolute shebang, so a venv built at /srv/.venv and copied to /opt/venv
+# would leave every entrypoint pointing at a path that no longer exists.
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH" \
+    VIRTUAL_ENV=/opt/venv \
+    PIPENV_NOSPIN=1 \
+    PIPENV_VERBOSITY=-1
+
+COPY Pipfile Pipfile.lock ./
+
+# --deploy installs strictly from Pipfile.lock and fails the build if the lock
+# has drifted from the Pipfile. With VIRTUAL_ENV set, pipenv targets that venv.
+RUN pipenv install --deploy \
+    && /opt/venv/bin/pip check
 
 # ---- Runtime ----------------------------------------------------------------
 FROM base AS runtime
@@ -38,7 +54,8 @@ FROM base AS runtime
 RUN groupadd --system app && useradd --system --gid app --create-home app
 
 COPY --from=builder /opt/venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
+ENV PATH="/opt/venv/bin:$PATH" \
+    VIRTUAL_ENV=/opt/venv
 
 COPY --chown=app:app . /app
 # WORKDIR is created as root, so give the unprivileged user ownership of the

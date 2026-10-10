@@ -1,9 +1,13 @@
-# Python / Django
+# Python / Django / pipenv
 __pycache__/
 *.py[cod]
 *.egg-info/
+# pipenv: PIPENV_VENV_IN_PROJECT=1 puts the venv in the project; the default
+# lives under ~/.local/share/virtualenvs/ but ignore it here too.
 .venv/
 venv/
+.python-version
+Pipfile.lock.bak
 .mypy_cache/
 .ruff_cache/
 .pytest_cache/

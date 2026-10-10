@@ -1,15 +1,27 @@
 .PHONY: help up down build restart logs shell test smoke migrations makemigrations \
-        prod-up prod-down db backup superuser lint check clean
+        prod-up prod-down db backup superuser lint check clean \
+        install install-dev lock
 
 COMPOSE      := docker compose
 PROD_COMPOSE := docker compose -f docker-compose.yml
 IMAGE        := gymlarper-api:dev
 
+# --- Python environment (pipenv) ------------------------------------------
+
+install:  ## Create the venv and install locked runtime packages
+	pipenv install --deploy
+
+install-dev:  ## Same, but including [dev-packages]
+	pipenv install --dev
+
+lock:  ## Re-resolve dependencies and rewrite Pipfile.lock (run after editing Pipfile)
+	pipenv lock
+
+# --- Development -----------------------------------------------------------
+
 help:  ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
 		| awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
-
-# --- Development -----------------------------------------------------------
 
 up:  ## Start the dev stack (API + Postgres, live reload)
 	$(COMPOSE) up -d --build

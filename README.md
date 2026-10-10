@@ -26,13 +26,16 @@ make shell       # Django shell in the container
 make db          # psql inside the Postgres container
 ```
 
-Requires Docker with the Compose v2 plugin. A local virtualenv works too if
-you have `python3-venv` (`sudo apt install python3-venv`):
+Requires Docker with the Compose v2 plugin. The container installs strictly
+from `Pipfile.lock`, so a `docker compose up --build` needs no Python on the
+host.
+
+For local work without Docker:
 
 ```bash
-python3 -m venv .venv && . .venv/bin/activate
-pip install -r requirements.txt
-DJANGO_USE_SQLITE=true DJANGO_DEBUG=true python manage.py test
+pip install pipenv
+make install        # pipenv install --deploy
+pipenv run python manage.py test --settings=config.test_settings
 ```
 
 ---
@@ -52,10 +55,33 @@ DJANGO_USE_SQLITE=true DJANGO_DEBUG=true python manage.py test
 
 ---
 
-## Layout
+## Dependencies
 
+Managed with [pipenv](https://pipenv.pypa.io).
+
+- `Pipfile` — human-editable constraints (`~=5.2.5` means ">=5.2.5, <5.3").
+- `Pipfile.lock` — the exact resolved versions. **Commit it.**
+
+After editing `Pipfile`:
+
+```bash
+make lock          # pipenv lock  -> rewrites Pipfile.lock
+make install       # reinstall from the lock
 ```
-config/            settings, urls, wsgi/asgi, test settings
+
+Docker runs `pipenv install --deploy`, which installs *only* from the lock and
+**fails the build if the lock has drifted from the Pipfile**. That is the
+guarantee `requirements.txt` could not give you — a stale lock can never be
+silently deployed.
+
+Adding a dependency:
+
+```bash
+pipenv install "django-filter~=25.1"
+```
+
+The lock is generated against Python 3.13, which is what both the Docker image
+and `[requires]` target.
 apps/
   core/            SyncableModel base, SyncState sequence, error envelope
   accounts/        Google auth, profiles, device sessions

@@ -8,11 +8,11 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from django.db import IntegrityError, transaction
 from django.utils import timezone
-from rest_framework import status
-from rest_framework.generics import ListAPIView
+from rest_framework import status, viewsets
+from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.views import APIView
+from rest_framework.viewsets import ModelViewSet, ViewSet
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from .google import GoogleAuthError, GoogleIdentity, verify_google_token
@@ -121,14 +121,37 @@ def issue_tokens(
     }
 
 
-class GoogleSignInView(APIView):
-    """Exchange a verified Google ID token for our own access/refresh pair."""
+def _touch_session(request) -> None:
+    """Keep 'last seen' honest for the active-devices screen."""
+    session_id = (
+        (getattr(request, "auth", None) or {}).get("sid")
+        if hasattr(request, "auth")
+        else None
+    )
+    if session_id:
+        DeviceSession.objects.filter(pk=session_id).update(last_seen_at=timezone.now())
 
-    permission_classes = [AllowAny]
-    authentication_classes: list = []
-    throttle_scope = "google_signin"
 
-    def post(self, request):
+class AuthViewSet(ViewSet):
+    """Token exchange and profile management.
+
+    No model sits behind these, so a ModelViewSet would be a lie - the CRUD
+    routes would have nothing to serve. Grouping them as actions on one
+    viewset still keeps the whole auth surface in a single class and lets the
+    router own the URL map.
+    """
+
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path="google",
+        url_name="google-signin",
+        permission_classes=[AllowAny],
+        authentication_classes=[],
+        throttle_scope="google_signin",
+    )
+    def google(self, request):
+        """Exchange a verified Google ID token for our own access/refresh pair."""
         serializer = GoogleSignInSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
@@ -171,14 +194,17 @@ class GoogleSignInView(APIView):
         )
 
 
-class RefreshView(APIView):
-    """Rotate a refresh token, returning a fresh pair and the same session."""
-
-    permission_classes = [AllowAny]
-    authentication_classes: list = []
-    throttle_scope = "token_refresh"
-
-    def post(self, request):
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path="refresh",
+        url_name="refresh",
+        permission_classes=[AllowAny],
+        authentication_classes=[],
+        throttle_scope="token_refresh",
+    )
+    def refresh(self, request):
+        """Rotate a refresh token, returning a fresh pair and the same session."""
         serializer = RefreshSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         raw = serializer.validated_data["refresh"]
@@ -248,79 +274,48 @@ class RefreshView(APIView):
         )
 
 
-class MeView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        _touch_session(request)
-        return Response(UserProfileSerializer(ensure_profile(request.user)).data)
-
-    def patch(self, request):
+    @action(detail=False, methods=["get", "patch"], url_path="me", url_name="me")
+    def me(self, request):
+        """Read or update the caller's own profile."""
         profile = ensure_profile(request.user)
-        serializer = UserProfileSerializer(
-            profile, data=request.data, partial=True, context={"request": request}
-        )
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response(serializer.data)
+        if request.method == "PATCH":
+            serializer = UserProfileSerializer(
+                profile, data=request.data, partial=True, context={"request": request}
+            )
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            return Response(serializer.data)
+
+        _touch_session(request)
+        return Response(UserProfileSerializer(profile).data)
 
 
-def _touch_session(request) -> None:
-    """Keep 'last seen' honest for the active-devices screen."""
-    session_id = (
-        (getattr(request, "auth", None) or {}).get("sid")
-        if hasattr(request, "auth")
-        else None
+
+    @action(
+        detail=False, methods=["post"], url_path="logout", url_name="logout"
     )
-    if session_id:
-        DeviceSession.objects.filter(pk=session_id).update(last_seen_at=timezone.now())
-
-
-class LogoutView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def post(self, request):
+    def logout(self, request):
+        """Revoke every session for this user."""
         now = timezone.now()
         DeviceSession.objects.filter(user=request.user, revoked_at__isnull=True).update(
             revoked_at=now
         )
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path="password",
+        url_name="change-password",
+    )
+    def change_password(self, request):
+        """Escape hatch for accounts that cannot (or do not want to) use Google.
 
-class DeviceSessionListView(ListAPIView):
-    permission_classes = [IsAuthenticated]
-    serializer_class = DeviceSessionSerializer
-
-    def get_queryset(self):
-        return DeviceSession.objects.filter(
-            user=self.request.user, revoked_at__isnull=True
-        )
-
-
-class DeviceSessionRevokeView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def post(self, request, pk: int):
-        updated = DeviceSession.objects.filter(
-            user=request.user, pk=pk, revoked_at__isnull=True
-        ).update(revoked_at=timezone.now())
-        if not updated:
-            return Response(status=status.HTTP_404_NOT_FOUND)
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-
-class ChangePasswordView(APIView):
-    """Escape hatch for accounts that cannot (or do not want to) use Google.
-
-    Because Google accounts have no usable password, "prove you are you" means
-    re-verifying a Google ID token for the *same* subject. Otherwise a stolen
-    access token could mint a permanent password that survives every later
-    session revocation.
-    """
-
-    permission_classes = [IsAuthenticated]
-
-    def post(self, request):
+        Because Google accounts have no usable password, "prove you are you"
+        means re-verifying a Google ID token for the *same* subject. Otherwise a
+        stolen access token could mint a permanent password that survives every
+        later session revocation.
+        """
         serializer = ChangePasswordSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = request.user
@@ -371,3 +366,27 @@ class ChangePasswordView(APIView):
         user.set_password(serializer.validated_data["new_password"])
         user.save(update_fields=["password"])
         return Response({"detail": "Password updated."})
+
+
+class DeviceSessionViewSet(ModelViewSet):
+    """Signed-in devices, so an athlete can see and revoke their own sessions."""
+
+    serializer_class = DeviceSessionSerializer
+    http_method_names = ["get", "post", "head", "options"]
+
+    def get_queryset(self):
+        return DeviceSession.objects.filter(
+            user=self.request.user, revoked_at__isnull=True
+        ).order_by("-last_seen_at")
+
+    def perform_create(self, serializer):
+        # Sessions are minted by the auth flow, never created by the client.
+        serializer.save(user=self.request.user, token_hash=secrets.token_hex(32))
+
+    @action(detail=True, methods=["post"], url_path="revoke", url_name="revoke")
+    def revoke(self, request, pk=None):
+        """Invalidate one device - and its live access tokens, immediately."""
+        session = self.get_object()
+        session.revoked_at = timezone.now()
+        session.save(update_fields=["revoked_at"])
+        return Response(status=status.HTTP_204_NO_CONTENT)

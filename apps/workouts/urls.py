@@ -15,20 +15,44 @@ router.register(
 router.register("sets", views.WorkoutSetViewSet, basename="workout-set")
 
 urlpatterns = [
-    path("sync/push/", views.SyncPushView.as_view(), name="sync-push"),
-    path("sync/pull/", views.SyncPullView.as_view(), name="sync-pull"),
-    path("dashboard/summary/", views.dashboard_summary, name="dashboard-summary"),
-    path("dashboard/weekly-volume/", views.weekly_volume, name="weekly-volume"),
     path(
-        "dashboard/personal-records/", views.personal_records, name="personal-records"
+        "sync/push/",
+        views.SyncViewSet.as_view({"post": "push"}),
+        name="sync-push",
     ),
     path(
-        "dashboard/volume-by-muscle/", views.volume_by_muscle, name="volume-by-muscle"
+        "sync/pull/",
+        views.SyncViewSet.as_view({"get": "pull"}),
+        name="sync-pull",
     ),
-    path("dashboard/machines/", views.machines, name="dashboard-machines"),
+    path(
+        "dashboard/summary/",
+        views.DashboardViewSet.as_view({"get": "summary"}),
+        name="dashboard-summary",
+    ),
+    path(
+        "dashboard/weekly-volume/",
+        views.DashboardViewSet.as_view({"get": "weekly_volume"}),
+        name="weekly-volume",
+    ),
+    path(
+        "dashboard/personal-records/",
+        views.DashboardViewSet.as_view({"get": "personal_records"}),
+        name="personal-records",
+    ),
+    path(
+        "dashboard/volume-by-muscle/",
+        views.DashboardViewSet.as_view({"get": "volume_by_muscle"}),
+        name="volume-by-muscle",
+    ),
+    path(
+        "dashboard/machines/",
+        views.DashboardViewSet.as_view({"get": "machines"}),
+        name="dashboard-machines",
+    ),
     path(
         "dashboard/exercise-progress/<uuid:exercise_id>/",
-        views.exercise_progress,
+        views.DashboardViewSet.as_view({"get": "exercise_progress"}),
         name="exercise-progress",
     ),
     path("", include(router.urls)),

@@ -7,11 +7,11 @@ from django.db.models import Prefetch
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import status, viewsets
-from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.viewsets import ViewSet
+from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.views import APIView
 
 from apps.accounts.models import ensure_profile
 
@@ -653,11 +653,17 @@ class WorkoutSetViewSet(viewsets.ModelViewSet):
 # --- Sync --------------------------------------------------------------------
 
 
-class SyncPushView(APIView):
-    permission_classes = [IsAuthenticated]
-    throttle_scope = "sync_push"
+class SyncViewSet(ViewSet):
+    """Offline-first sync: push local edits, pull server changes."""
 
-    def post(self, request):
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path="push",
+        url_name="sync-push",
+        throttle_scope="sync_push",
+    )
+    def push(self, request):
         ops = request.data.get("ops")
         if not isinstance(ops, list):
             return Response(
@@ -693,14 +699,11 @@ class SyncPushView(APIView):
             }
         )
 
-
-class SyncPullView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
+    @action(detail=False, methods=["get"], url_path="pull", url_name="sync-pull")
+    def pull(self, request):
         try:
             since = int(request.query_params.get("since", 0))
-        except TypeError, ValueError:
+        except (TypeError, ValueError):
             return Response(
                 {
                     "error": {
@@ -713,8 +716,8 @@ class SyncPullView(APIView):
             )
         try:
             limit = int(request.query_params.get("limit", MAX_PULL_PER_TYPE))
-        except TypeError, ValueError:
-            limit = MAX_PULL_PER_TYPE
+        except (TypeError, ValueError):
+            limit = MAX_PULL_OPS
 
         payload = build_pull(request.user, since, limit)
         payload["server_time"] = timezone.now()
@@ -733,65 +736,80 @@ def _unit(request) -> str:
     )
 
 
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def dashboard_summary(request):
-    days = _safe_int(
-        request.query_params.get("days", 365), 365, minimum=1, maximum=3650
-    )
-    return Response(
-        stats_module.summary(request.user, lookback_days=max(1, min(days, 3650)))
-    )
+class DashboardViewSet(ViewSet):
+    """Read-only aggregates over the athlete's own data."""
 
-
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def weekly_volume(request):
-    weeks = _safe_int(request.query_params.get("weeks", 12), 12, minimum=1, maximum=104)
-    return Response(
-        {
-            "unit": _unit(request),
-            "series": stats_module.weekly_volume(
-                request.user, weeks=max(1, min(weeks, 104)), unit=_unit(request)
-            ),
-        }
-    )
-
-
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def personal_records(request):
-    limit = _safe_int(request.query_params.get("limit", 50), 50, minimum=1, maximum=500)
-    return Response(
-        stats_module.personal_records(
-            request.user, limit=max(1, min(limit, 500)), unit=_unit(request)
+    @action(detail=False, methods=["get"], url_path="summary", url_name="summary")
+    def summary(self, request):
+        days = _safe_int(
+            request.query_params.get("days", 365), 365, minimum=1, maximum=3650
         )
+        return Response(
+            stats_module.summary(request.user, lookback_days=max(1, min(days, 3650)))
+        )
+
+    @action(
+        detail=False, methods=["get"], url_path="weekly-volume", url_name="weekly-volume"
     )
+    def weekly_volume(self, request):
+        weeks = _safe_int(
+            request.query_params.get("weeks", 12), 12, minimum=1, maximum=104
+        )
+        return Response(
+            {
+                "unit": _unit(request),
+                "series": stats_module.weekly_volume(
+                    request.user, weeks=max(1, min(weeks, 104)), unit=_unit(request)
+                ),
+            }
+        )
 
-
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def volume_by_muscle(request):
-    days = _safe_int(request.query_params.get("days", 90), 90, minimum=1, maximum=3650)
-    return Response(
-        {
-            "unit": _unit(request),
-            "rows": stats_module.volume_by_muscle(
-                request.user, days=max(1, min(days, 3650)), unit=_unit(request)
-            ),
-        }
+    @action(
+        detail=False,
+        methods=["get"],
+        url_path="personal-records",
+        url_name="personal-records",
     )
+    def personal_records(self, request):
+        limit = _safe_int(
+            request.query_params.get("limit", 50), 50, minimum=1, maximum=500
+        )
+        return Response(
+            stats_module.personal_records(
+                request.user, limit=max(1, min(limit, 500)), unit=_unit(request)
+            )
+        )
 
-
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def exercise_progress(request, exercise_id):
-    return Response(
-        stats_module.exercise_progress(request.user, exercise_id, unit=_unit(request))
+    @action(
+        detail=False,
+        methods=["get"],
+        url_path="volume-by-muscle",
+        url_name="volume-by-muscle",
     )
+    def volume_by_muscle(self, request):
+        days = _safe_int(
+            request.query_params.get("days", 90), 90, minimum=1, maximum=3650
+        )
+        return Response(
+            {
+                "unit": _unit(request),
+                "rows": stats_module.volume_by_muscle(
+                    request.user, days=max(1, min(days, 3650)), unit=_unit(request)
+                ),
+            }
+        )
 
+    @action(
+        detail=False,
+        methods=["get"],
+        url_path=r"exercise-progress/(?P<exercise_id>[0-9a-f-]+)",
+        url_name="exercise-progress",
+    )
+    def exercise_progress(self, request, exercise_id=None):
+        return Response(
+            stats_module.exercise_progress(request.user, exercise_id, unit=_unit(request))
+        )
 
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def machines(request):
-    return Response({"rows": stats_module.most_used_machines(request.user)})
+    @action(detail=False, methods=["get"], url_path="machines", url_name="machines")
+    def machines(self, request):
+        return Response({"rows": stats_module.most_used_machines(request.user)})

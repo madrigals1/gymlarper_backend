@@ -38,8 +38,8 @@ docker compose run --rm api python manage.py test --settings=config.test_setting
 # Migrations: -u root, or the container user cannot write the file
 docker compose run --rm -u root api python manage.py makemigrations
 
-# Production: -f skips docker-compose.override.yml (no bind mount, gunicorn)
-docker compose -f docker-compose.yml up -d --build
+# Run the app
+docker compose up -d --build
 
 # psql / pg_dump on the shared server.
 # -h 127.0.0.1 is required: its pg_hba.conf rejects local-socket connections.
@@ -208,13 +208,15 @@ also accepts a comma-separated list if you prefer separate IDs.
 
 ```bash
 git clone <repo> /opt/gymlarper && cd /opt/gymlarper
-cp .env.example .env && $EDITOR .env      # secret key, DB password, domain, Google ID
-docker compose -f docker-compose.yml up -d --build
+cp .env.example .env && $EDITOR .env      # secret key, domain, Google ID
+docker compose up -d --build
 ```
 
-Passing `-f docker-compose.yml` deliberately skips
-`docker-compose.override.yml` — you get gunicorn with 3 workers instead of the
-dev server, and no bind mount of your source tree.
+There is one compose file and it always runs the production setup: gunicorn
+with 3 workers, no source bind mount, DEBUG off. To run a second copy, clone the
+repo elsewhere and give it its own `.env` — separate port, separate
+`container_name`, separate `HTTPS_NETWORK` alias if you want both behind the
+tunnel.
 
 ### Wiring up your tunnel / proxy
 

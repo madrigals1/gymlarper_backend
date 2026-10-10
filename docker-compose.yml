@@ -3,8 +3,12 @@
 #   docker compose up --build                      # dev (bind mount, runserver)
 #   docker compose -f docker-compose.yml up -d     # production (gunicorn)
 #
+# Configuration lives entirely in .env - see .env.example. The container gets it
+# via env_file, so there is no variable list to keep in sync here.
+#
 # The database is the shared Postgres from ~/projects/postgres - this stack owns
-# no database container and no data volume. It joins both of your shared meshes:
+# no database container and no data volume. The API joins both of your shared
+# meshes:
 #
 #   https_network      cloudflared / nginx_proxy_manager -> gymlarper-api:8000
 #   database_network   gymlarper-api -> postgres:5432
@@ -20,42 +24,14 @@ services:
       dockerfile: Dockerfile
     container_name: gymlarper-api
     restart: unless-stopped
-    environment:
-      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?set DJANGO_SECRET_KEY in .env}
-      DJANGO_DEBUG: ${DJANGO_DEBUG:-false}
-      # Must contain the PUBLIC hostname, because Cloudflare Tunnel and NPM
-      # forward the original Host header through to Django.
-      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1}
-      DJANGO_CORS_ALLOWED_ORIGINS: ${DJANGO_CORS_ALLOWED_ORIGINS:-}
-      DJANGO_PUBLIC_ORIGIN: ${DJANGO_PUBLIC_ORIGIN:-http://localhost:8000}
-      DJANGO_TIME_ZONE: ${DJANGO_TIME_ZONE:-UTC}
-      DJANGO_USE_SQLITE: "false"
-
-      # TLS terminates upstream, so Django honours X-Forwarded-Proto and can
-      # enforce https redirects itself. Set false only when the API is reached
-      # directly over plain HTTP.
-      DJANGO_SECURE_SSL_REDIRECT: ${DJANGO_SECURE_SSL_REDIRECT:-true}
-      DJANGO_SECURE_HSTS_SECONDS: ${DJANGO_SECURE_HSTS_SECONDS:-31536000}
-
-      # Shared Postgres from ~/projects/postgres, reached over database_network.
-      # POSTGRES_HOST is the *container* name on that mesh, not the published
-      # host port - do not copy POSTGRES_PORT from that project's .env.
-      POSTGRES_DB: ${POSTGRES_DB:-gymlarper}
-      POSTGRES_USER: ${POSTGRES_USER:-gymlarper_admin}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
-      POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
-      POSTGRES_PORT: 5432
-
-      GOOGLE_CLIENT_IDS: ${GOOGLE_CLIENT_IDS:-}
-      GOOGLE_HD_ORG_DOMAIN: ${GOOGLE_HD_ORG_DOMAIN:-}
-
-      ACCESS_TOKEN_LIFETIME_MINUTES: ${ACCESS_TOKEN_LIFETIME_MINUTES:-60}
-      REFRESH_TOKEN_LIFETIME_DAYS: ${REFRESH_TOKEN_LIFETIME_DAYS:-30}
-      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    env_file:
+      - .env
     ports:
       # Bound to loopback for local curl and the smoke tests. Traffic from the
       # tunnel/NPM arrives over https_network instead, so this mapping is not
       # the production entry point.
+      #
+      # ports cannot read from env_file, so this one still interpolates .env.
       - "${API_BIND:-127.0.0.1}:${API_PORT:-8000}:8000"
     networks:
       - https

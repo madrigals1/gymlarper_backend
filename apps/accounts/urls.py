@@ -17,5 +17,9 @@ urlpatterns = [
     path("auth/me/", MeView.as_view(), name="me"),
     path("auth/password/", ChangePasswordView.as_view(), name="change-password"),
     path("auth/devices/", DeviceSessionListView.as_view(), name="devices"),
-    path("auth/devices/<int:pk>/revoke/", DeviceSessionRevokeView.as_view(), name="device-revoke"),
+    path(
+        "auth/devices/<int:pk>/revoke/",
+        DeviceSessionRevokeView.as_view(),
+        name="device-revoke",
+    ),
 ]

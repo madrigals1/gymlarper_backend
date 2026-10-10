@@ -34,7 +34,13 @@ class WorkoutSetInline(admin.TabularInline):
 class WorkoutExerciseInline(admin.TabularInline):
     model = WorkoutExercise
     extra = 0
-    fields = ("position", "exercise", "exercise_name", "machine_name", "machine_settings")
+    fields = (
+        "position",
+        "exercise",
+        "exercise_name",
+        "machine_name",
+        "machine_settings",
+    )
     inlines = [WorkoutSetInline]
 
 
@@ -67,7 +73,14 @@ class WorkoutTemplateAdmin(admin.ModelAdmin):
 
 @admin.register(Workout)
 class WorkoutAdmin(admin.ModelAdmin):
-    list_display = ("display_name", "user", "location", "started_at", "finished_at", "unit")
+    list_display = (
+        "display_name",
+        "user",
+        "location",
+        "started_at",
+        "finished_at",
+        "unit",
+    )
     list_filter = ("unit",)
     search_fields = ("name", "user__email")
     date_hierarchy = "started_at"

@@ -55,18 +55,24 @@ class GymLocation(SyncableModel):
     )
 
     name = models.CharField(max_length=120)
-    kind = models.CharField(max_length=10, choices=LocationKind.choices, default=LocationKind.GYM)
+    kind = models.CharField(
+        max_length=10, choices=LocationKind.choices, default=LocationKind.GYM
+    )
     address = models.CharField(max_length=240, blank=True)
     notes = models.TextField(blank=True)
 
     # Denormalised for dashboard filtering without a join on every query.
     is_archived = models.BooleanField(default=False)
-    color = models.CharField(max_length=7, blank=True, help_text="Hex colour for the UI chip.")
+    color = models.CharField(
+        max_length=7, blank=True, help_text="Hex colour for the UI chip."
+    )
 
     class Meta:
         ordering = ["kind", "name"]
         constraints = [
-            models.UniqueConstraint(fields=["user", "name"], name="uniq_location_name_per_user")
+            models.UniqueConstraint(
+                fields=["user", "name"], name="uniq_location_name_per_user"
+            )
         ]
         indexes = [models.Index(fields=["user", "-updated_at"])]
 
@@ -99,7 +105,9 @@ class Exercise(SyncableModel):
     class Meta:
         ordering = ["name"]
         constraints = [
-            models.UniqueConstraint(fields=["user", "name"], name="uniq_exercise_name_per_user")
+            models.UniqueConstraint(
+                fields=["user", "name"], name="uniq_exercise_name_per_user"
+            )
         ]
         indexes = [
             models.Index(fields=["user", "muscle_group"]),
@@ -119,12 +127,20 @@ class MachineSetup(SyncableModel):
     """
 
     user = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="machine_setups"
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="machine_setups",
     )
 
-    exercise = models.ForeignKey(Exercise, on_delete=models.CASCADE, related_name="setups")
+    exercise = models.ForeignKey(
+        Exercise, on_delete=models.CASCADE, related_name="setups"
+    )
     location = models.ForeignKey(
-        GymLocation, on_delete=models.CASCADE, related_name="machine_setups", null=True, blank=True
+        GymLocation,
+        on_delete=models.CASCADE,
+        related_name="machine_setups",
+        null=True,
+        blank=True,
     )
 
     # Optional: the branded unit itself, e.g. "Cybex Eagle NX".
@@ -140,7 +156,9 @@ class MachineSetup(SyncableModel):
         indexes = [models.Index(fields=["user", "exercise"])]
 
     def __str__(self) -> str:
-        return f"{self.machine_name or self.exercise.name} @ {self.location or 'anywhere'}"
+        return (
+            f"{self.machine_name or self.exercise.name} @ {self.location or 'anywhere'}"
+        )
 
 
 class WorkoutTemplate(SyncableModel):
@@ -176,7 +194,9 @@ class WorkoutTemplate(SyncableModel):
     class Meta:
         ordering = ["name"]
         constraints = [
-            models.UniqueConstraint(fields=["user", "name"], name="uniq_template_name_per_user")
+            models.UniqueConstraint(
+                fields=["user", "name"], name="uniq_template_name_per_user"
+            )
         ]
 
     def __str__(self) -> str:
@@ -187,18 +207,26 @@ class TemplateItem(SyncableModel):
     """One exercise inside a template, with its prescribed work."""
 
     user = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="template_items"
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="template_items",
     )
 
-    template = models.ForeignKey(WorkoutTemplate, on_delete=models.CASCADE, related_name="items")
-    exercise = models.ForeignKey(Exercise, on_delete=models.CASCADE, related_name="template_items")
+    template = models.ForeignKey(
+        WorkoutTemplate, on_delete=models.CASCADE, related_name="items"
+    )
+    exercise = models.ForeignKey(
+        Exercise, on_delete=models.CASCADE, related_name="template_items"
+    )
 
     position = models.PositiveIntegerField(default=0)
 
     target_sets = models.PositiveIntegerField(default=3)
     target_reps_min = models.PositiveIntegerField(default=8)
     target_reps_max = models.PositiveIntegerField(default=12)
-    target_weight = models.DecimalField(max_digits=7, decimal_places=2, null=True, blank=True)
+    target_weight = models.DecimalField(
+        max_digits=7, decimal_places=2, null=True, blank=True
+    )
     target_rpe = models.DecimalField(
         max_digits=3,
         decimal_places=1,
@@ -226,10 +254,18 @@ class Workout(SyncableModel):
     )
 
     template = models.ForeignKey(
-        WorkoutTemplate, on_delete=models.SET_NULL, null=True, blank=True, related_name="workouts"
+        WorkoutTemplate,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="workouts",
     )
     location = models.ForeignKey(
-        GymLocation, on_delete=models.SET_NULL, null=True, blank=True, related_name="workouts"
+        GymLocation,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="workouts",
     )
 
     name = models.CharField(max_length=120, blank=True)
@@ -244,7 +280,9 @@ class Workout(SyncableModel):
         choices=[(unit_utils.KG, "Kilograms"), (unit_utils.LB, "Pounds")],
         default=unit_utils.KG,
     )
-    bodyweight = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
+    bodyweight = models.DecimalField(
+        max_digits=6, decimal_places=2, null=True, blank=True
+    )
     bodyweight_unit = models.CharField(
         max_length=2,
         choices=[(unit_utils.KG, "Kilograms"), (unit_utils.LB, "Pounds")],
@@ -308,12 +346,20 @@ class WorkoutExercise(SyncableModel):
     """
 
     user = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="workout_exercises"
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="workout_exercises",
     )
 
-    workout = models.ForeignKey(Workout, on_delete=models.CASCADE, related_name="exercises")
+    workout = models.ForeignKey(
+        Workout, on_delete=models.CASCADE, related_name="exercises"
+    )
     exercise = models.ForeignKey(
-        Exercise, on_delete=models.SET_NULL, null=True, blank=True, related_name="workout_exercises"
+        Exercise,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="workout_exercises",
     )
 
     # Copied from Exercise at start time so history survives deletion/rename.
@@ -339,7 +385,9 @@ class WorkoutExercise(SyncableModel):
 
     @property
     def display_name(self) -> str:
-        return self.exercise_name or (self.exercise.name if self.exercise_id else "Exercise")
+        return self.exercise_name or (
+            self.exercise.name if self.exercise_id else "Exercise"
+        )
 
     @property
     def completed_sets(self) -> int:
@@ -372,7 +420,9 @@ class WorkoutSet(SyncableModel):
         default=unit_utils.KG,
     )
 
-    set_type = models.CharField(max_length=10, choices=SetType.choices, default=SetType.WORKING)
+    set_type = models.CharField(
+        max_length=10, choices=SetType.choices, default=SetType.WORKING
+    )
     is_bodyweight = models.BooleanField(default=False)
     rpe = models.DecimalField(
         max_digits=3,

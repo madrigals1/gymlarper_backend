@@ -63,7 +63,9 @@ class SyncType:
 
 
 SYNC_TYPES: dict[str, SyncType] = {
-    "location": SyncType("location", GymLocation, GymLocationSerializer, immutable=("user",)),
+    "location": SyncType(
+        "location", GymLocation, GymLocationSerializer, immutable=("user",)
+    ),
     "exercise": SyncType("exercise", Exercise, ExerciseSerializer, immutable=("user",)),
     "machine_setup": SyncType(
         "machine_setup", MachineSetup, MachineSetupSerializer, immutable=("user",)
@@ -76,9 +78,14 @@ SYNC_TYPES: dict[str, SyncType] = {
     ),
     "workout": SyncType("workout", Workout, WorkoutSerializer, immutable=("user",)),
     "workout_exercise": SyncType(
-        "workout_exercise", WorkoutExercise, WorkoutExerciseSerializer, immutable=("user",)
+        "workout_exercise",
+        WorkoutExercise,
+        WorkoutExerciseSerializer,
+        immutable=("user",),
     ),
-    "workout_set": SyncType("workout_set", WorkoutSet, WorkoutSetSerializer, immutable=("user",)),
+    "workout_set": SyncType(
+        "workout_set", WorkoutSet, WorkoutSetSerializer, immutable=("user",)
+    ),
 }
 
 #: Children whose parent must exist and belong to the same athlete. Guards
@@ -154,7 +161,11 @@ def _apply_snapshots(sync_type_name: str, instance, data: dict) -> bool:
         if not related_id:
             continue
         related_model = _related_model(source_field)
-        related = related_model.objects.filter(pk=related_id).first() if related_model else None
+        related = (
+            related_model.objects.filter(pk=related_id).first()
+            if related_model
+            else None
+        )
         if related is None:
             continue
         for target_attr, source_attr in mapping.items():
@@ -178,7 +189,9 @@ def apply_push(user, ops: list[dict]) -> list[dict]:
 
         sync_type = SYNC_TYPES.get(type_name)
         if sync_type is None:
-            results.append(_reject(op_id, type_name, f"Unknown sync type '{type_name}'."))
+            results.append(
+                _reject(op_id, type_name, f"Unknown sync type '{type_name}'.")
+            )
             continue
         if not op_id:
             results.append(_reject(op_id, type_name, "Every operation needs an id."))
@@ -189,12 +202,16 @@ def apply_push(user, ops: list[dict]) -> list[dict]:
         try:
             with transaction.atomic():
                 results.append(
-                    _apply_one(user, sync_type, op_id, action, base_rev, op.get("data") or {})
+                    _apply_one(
+                        user, sync_type, op_id, action, base_rev, op.get("data") or {}
+                    )
                 )
         except ValidationError as exc:
             detail = exc.detail
             results.append(
-                _reject(op_id, type_name, str(detail if isinstance(detail, str) else detail))
+                _reject(
+                    op_id, type_name, str(detail if isinstance(detail, str) else detail)
+                )
             )
         except Exception as exc:  # noqa: BLE001
             logger.exception("Sync op %s %s failed", type_name, op_id)
@@ -203,7 +220,9 @@ def apply_push(user, ops: list[dict]) -> list[dict]:
     return results
 
 
-def _apply_one(user, sync_type: SyncType, op_id, action: str, base_rev: int, data: dict) -> dict:
+def _apply_one(
+    user, sync_type: SyncType, op_id, action: str, base_rev: int, data: dict
+) -> dict:
     existing = sync_type.model.objects.filter(pk=op_id, user=user).first()
 
     if action == "delete":
@@ -297,7 +316,9 @@ def build_pull(user, since: int, limit: int = MAX_PULL_PER_TYPE) -> dict:
 
     for type_name, sync_type in SYNC_TYPES.items():
         rows = list(
-            sync_type.model.objects.filter(user=user, seq__gt=since).order_by("seq")[: limit + 1]
+            sync_type.model.objects.filter(user=user, seq__gt=since).order_by("seq")[
+                : limit + 1
+            ]
         )
         if len(rows) > limit:
             rows = rows[:limit]

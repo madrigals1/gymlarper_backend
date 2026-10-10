@@ -45,7 +45,8 @@ if not _secret_key:
     if not DEBUG:
         raise ImproperlyConfigured(
             "DJANGO_SECRET_KEY must be set when DJANGO_DEBUG is false. "
-            'Generate one with: python -c "import secrets; print(secrets.token_urlsafe(64))"'
+            "Generate one with:\n"
+            '  python -c "import secrets; print(secrets.token_urlsafe(64))"'
         )
     _secret_key = "insecure-dev-only-key"
 SECRET_KEY = _secret_key
@@ -142,7 +143,9 @@ STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
-    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"
+    },
 }
 MEDIA_URL = "media/"
 MEDIA_ROOT = BASE_DIR / "media"
@@ -174,8 +177,12 @@ REST_FRAMEWORK = {
 }
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=int(env("ACCESS_TOKEN_LIFETIME_MINUTES", "60"))),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=int(env("REFRESH_TOKEN_LIFETIME_DAYS", "30"))),
+    "ACCESS_TOKEN_LIFETIME": timedelta(
+        minutes=int(env("ACCESS_TOKEN_LIFETIME_MINUTES", "60"))
+    ),
+    "REFRESH_TOKEN_LIFETIME": timedelta(
+        days=int(env("REFRESH_TOKEN_LIFETIME_DAYS", "30"))
+    ),
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": False,
     "AUTH_HEADER_TYPES": ("Bearer",),
@@ -203,7 +210,9 @@ SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SECURE_SSL_REDIRECT = env_bool("DJANGO_SECURE_SSL_REDIRECT", not DEBUG)
 SESSION_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SECURE = not DEBUG
-SECURE_HSTS_SECONDS = int(env("DJANGO_SECURE_HSTS_SECONDS", "0" if DEBUG else "31536000"))
+SECURE_HSTS_SECONDS = int(
+    env("DJANGO_SECURE_HSTS_SECONDS", "0" if DEBUG else "31536000")
+)
 SECURE_HSTS_INCLUDE_SUBDOMAINS = not DEBUG
 SECURE_HSTS_PRELOAD = not DEBUG
 X_FRAME_OPTIONS = "DENY"
@@ -226,6 +235,10 @@ LOGGING = {
     },
     "root": {"handlers": ["console"], "level": LOG_LEVEL},
     "loggers": {
-        "django.db.backends": {"level": "INFO", "handlers": ["console"], "propagate": False},
+        "django.db.backends": {
+            "level": "INFO",
+            "handlers": ["console"],
+            "propagate": False,
+        },
     },
 }

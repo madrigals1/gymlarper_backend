@@ -85,7 +85,7 @@ def _owned(model, user, pk):
 
 
 class OwnedModelViewSet(viewsets.ModelViewSet):
-    """Base viewset that hides other athletes' rows and keeps the user FK server-owned."""
+    """Base viewset hiding other athletes' rows and keeping the user FK server-owned."""
 
     serializer_class = None
     user_field = "user"
@@ -121,7 +121,10 @@ class GymLocationViewSet(OwnedModelViewSet):
         from .models import LocationKind
 
         created = []
-        for name, kind in (("Home gym", LocationKind.HOME), ("Work gym", LocationKind.WORK)):
+        for name, kind in (
+            ("Home gym", LocationKind.HOME),
+            ("Work gym", LocationKind.WORK),
+        ):
             location, _ = GymLocation.objects.get_or_create(
                 user=request.user, name=name, defaults={"kind": kind}
             )
@@ -178,14 +181,18 @@ class MachineSetupViewSet(OwnedModelViewSet):
         """Best remembered setup for an exercise at a location, for one-tap prefill."""
         exercise_id = request.query_params.get("exercise")
         if not exercise_id:
-            return Response({"detail": "Query parameter 'exercise' is required."}, status=400)
+            return Response(
+                {"detail": "Query parameter 'exercise' is required."}, status=400
+            )
 
         queryset = MachineSetup.objects.filter(
             user=request.user, exercise_id=exercise_id, deleted_at__isnull=True
         ).select_related("location")
         location_id = request.query_params.get("location")
         if location_id:
-            exact = queryset.filter(location_id=location_id).order_by("-updated_at").first()
+            exact = (
+                queryset.filter(location_id=location_id).order_by("-updated_at").first()
+            )
             if exact:
                 return Response(MachineSetupSerializer(exact).data)
         fallback = queryset.order_by("-updated_at").first()
@@ -247,7 +254,8 @@ class WorkoutTemplateViewSet(OwnedModelViewSet):
                 user=user,
                 deleted_at__isnull=True,
                 exercise__in=[
-                    item.exercise_id for item in template.items.filter(deleted_at__isnull=True)
+                    item.exercise_id
+                    for item in template.items.filter(deleted_at__isnull=True)
                 ],
             )
         }
@@ -263,7 +271,9 @@ class WorkoutTemplateViewSet(OwnedModelViewSet):
             .select_related("exercise")
             .order_by("position")
         ):
-            setup = location_scoped.get(item.exercise_id) or setups.get(item.exercise_id)
+            setup = location_scoped.get(item.exercise_id) or setups.get(
+                item.exercise_id
+            )
             workout_exercise = WorkoutExercise.objects.create(
                 user=user,
                 workout=workout,
@@ -302,7 +312,9 @@ class WorkoutTemplateViewSet(OwnedModelViewSet):
         template = _owned(WorkoutTemplate, request.user, pk)
         order = request.data.get("order") or []
         if not isinstance(order, list):
-            return Response({"detail": "'order' must be a list of template item ids."}, status=400)
+            return Response(
+                {"detail": "'order' must be a list of template item ids."}, status=400
+            )
         owned = {
             str(item_id)
             for item_id in template.items.filter(deleted_at__isnull=True).values_list(
@@ -313,10 +325,14 @@ class WorkoutTemplateViewSet(OwnedModelViewSet):
         moved = []
         for position, item_id in enumerate(order):
             if item_id not in owned:
-                return Response({"detail": f"Item {item_id} is not in this template."}, status=400)
+                return Response(
+                    {"detail": f"Item {item_id} is not in this template."}, status=400
+                )
             item = TemplateItem.objects.filter(pk=item_id, user=request.user).first()
             if item is None:
-                return Response({"detail": f"Item {item_id} is not in this template."}, status=400)
+                return Response(
+                    {"detail": f"Item {item_id} is not in this template."}, status=400
+                )
             item.position = position
             item.save()  # save() is what bumps rev/seq so peers see the move
             moved.append(item)
@@ -390,7 +406,9 @@ class WorkoutViewSet(OwnedModelViewSet):
             .first()
         )
         if workout is None:
-            return Response({"detail": "No workout in progress."}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"detail": "No workout in progress."}, status=status.HTTP_404_NOT_FOUND
+            )
         return Response(WorkoutSerializer(workout).data)
 
     @action(detail=False, methods=["post"])
@@ -411,7 +429,8 @@ class WorkoutViewSet(OwnedModelViewSet):
             return Response(WorkoutSerializer(existing).data, status=status.HTTP_200_OK)
 
         location = (
-            _owned_location(request, request.data.get("location")) or profile.default_location
+            _owned_location(request, request.data.get("location"))
+            or profile.default_location
         )
 
         workout = Workout.objects.create(
@@ -434,7 +453,9 @@ class WorkoutViewSet(OwnedModelViewSet):
             if "bodyweight" in request.data:
                 workout.bodyweight = _decimal_or_none(request.data.get("bodyweight"))
             if "bodyweight_unit" in request.data:
-                workout.bodyweight_unit = request.data.get("bodyweight_unit") or workout.unit
+                workout.bodyweight_unit = (
+                    request.data.get("bodyweight_unit") or workout.unit
+                )
             workout.save()
         return Response(WorkoutSerializer(workout).data)
 
@@ -464,14 +485,22 @@ class WorkoutViewSet(OwnedModelViewSet):
                 exercise_id=getattr(exercise_obj, "id", None),
             )
             if location_id:
-                scoped = setup_qs.filter(location_id=location_id).order_by("-updated_at").first()
+                scoped = (
+                    setup_qs.filter(location_id=location_id)
+                    .order_by("-updated_at")
+                    .first()
+                )
                 setup = scoped or setup_qs.order_by("-updated_at").first()
             else:
                 setup = setup_qs.order_by("-updated_at").first()
             if setup:
-                machine_name = setup.machine_name if machine_name is None else machine_name
+                machine_name = (
+                    setup.machine_name if machine_name is None else machine_name
+                )
                 machine_settings = (
-                    setup.settings_json if machine_settings is None else machine_settings
+                    setup.settings_json
+                    if machine_settings is None
+                    else machine_settings
                 )
 
         item = (
@@ -487,22 +516,29 @@ class WorkoutViewSet(OwnedModelViewSet):
             workout=workout,
             exercise=exercise_obj,
             exercise_name=(
-                exercise_obj.name if exercise_obj else request.data.get("exercise_name", "")
+                exercise_obj.name
+                if exercise_obj
+                else request.data.get("exercise_name", "")
             ),
             muscle_group=exercise_obj.muscle_group if exercise_obj else "",
             equipment=exercise_obj.equipment if exercise_obj else "",
             machine_name=machine_name or "",
             machine_settings=machine_settings or {},
             position=position,
-            target_sets=request.data.get("target_sets") or (item.target_sets if item else None),
+            target_sets=request.data.get("target_sets")
+            or (item.target_sets if item else None),
             target_reps_min=request.data.get("target_reps_min")
             or (item.target_reps_min if item else None),
             target_reps_max=request.data.get("target_reps_max")
             or (item.target_reps_max if item else None),
         )
 
-        target_sets = request.data.get("target_sets") or (item.target_sets if item else 3)
-        default_reps = request.data.get("target_reps_min") or (item.target_reps_min if item else 8)
+        target_sets = request.data.get("target_sets") or (
+            item.target_sets if item else 3
+        )
+        default_reps = request.data.get("target_reps_min") or (
+            item.target_reps_min if item else 8
+        )
         for index in range(
             min(_safe_int(target_sets, MAX_SETS_PER_EXERCISE), MAX_SETS_PER_EXERCISE)
         ):
@@ -515,7 +551,8 @@ class WorkoutViewSet(OwnedModelViewSet):
             )
 
         return Response(
-            WorkoutExerciseSerializer(workout_exercise).data, status=status.HTTP_201_CREATED
+            WorkoutExerciseSerializer(workout_exercise).data,
+            status=status.HTTP_201_CREATED,
         )
 
     @action(detail=True, methods=["post"], url_path="exercises/reorder")
@@ -532,12 +569,14 @@ class WorkoutViewSet(OwnedModelViewSet):
         for position, item_id in enumerate(order):
             if item_id not in owned:
                 return Response(
-                    {"detail": f"Exercise {item_id} is not in this workout."}, status=400
+                    {"detail": f"Exercise {item_id} is not in this workout."},
+                    status=400,
                 )
             item = WorkoutExercise.objects.filter(pk=item_id, user=request.user).first()
             if item is None:
                 return Response(
-                    {"detail": f"Exercise {item_id} is not in this workout."}, status=400
+                    {"detail": f"Exercise {item_id} is not in this workout."},
+                    status=400,
                 )
             item.position = position
             item.save()
@@ -571,7 +610,9 @@ class WorkoutExerciseViewSet(viewsets.ModelViewSet):
             weight=last.weight if last else None,
             unit=last.unit if last else item.workout.unit,
         )
-        return Response(WorkoutSetSerializer(new_set).data, status=status.HTTP_201_CREATED)
+        return Response(
+            WorkoutSetSerializer(new_set).data, status=status.HTTP_201_CREATED
+        )
 
 
 class WorkoutSetViewSet(viewsets.ModelViewSet):
@@ -596,7 +637,9 @@ class WorkoutSetViewSet(viewsets.ModelViewSet):
         item.is_completed = bool(done)
         item.completed_at = timezone.now() if item.is_completed else None
         if "reps" in request.data:
-            item.reps = _safe_int(request.data["reps"], item.reps, minimum=0, maximum=1000)
+            item.reps = _safe_int(
+                request.data["reps"], item.reps, minimum=0, maximum=1000
+            )
         if "weight" in request.data:
             item.weight = _decimal_or_none(request.data.get("weight"))
         if "rpe" in request.data:
@@ -693,8 +736,12 @@ def _unit(request) -> str:
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def dashboard_summary(request):
-    days = _safe_int(request.query_params.get("days", 365), 365, minimum=1, maximum=3650)
-    return Response(stats_module.summary(request.user, lookback_days=max(1, min(days, 3650))))
+    days = _safe_int(
+        request.query_params.get("days", 365), 365, minimum=1, maximum=3650
+    )
+    return Response(
+        stats_module.summary(request.user, lookback_days=max(1, min(days, 3650)))
+    )
 
 
 @api_view(["GET"])
@@ -739,7 +786,9 @@ def volume_by_muscle(request):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def exercise_progress(request, exercise_id):
-    return Response(stats_module.exercise_progress(request.user, exercise_id, unit=_unit(request)))
+    return Response(
+        stats_module.exercise_progress(request.user, exercise_id, unit=_unit(request))
+    )
 
 
 @api_view(["GET"])

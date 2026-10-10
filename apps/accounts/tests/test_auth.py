@@ -40,7 +40,9 @@ class GoogleTokenVerificationTests(TestCase):
             self._verify()
         self.assertEqual(ctx.exception.code, "not_configured")
 
-    @override_settings(GOOGLE_CLIENT_IDS=["some-other-client.apps.googleusercontent.com"])
+    @override_settings(
+        GOOGLE_CLIENT_IDS=["some-other-client.apps.googleusercontent.com"]
+    )
     def test_rejects_token_for_a_different_app(self):
         with self.assertRaises(GoogleAuthError):
             self._verify()
@@ -81,7 +83,9 @@ class AuthFlowTests(TestCase):
     def setUp(self):
         super().setUp()
         self.client = APIClient()
-        patcher = mock.patch("apps.accounts.google._fetch_verified_claims", return_value=CLAIMS)
+        patcher = mock.patch(
+            "apps.accounts.google._fetch_verified_claims", return_value=CLAIMS
+        )
         self.mock_claims = patcher.start()
         self.addCleanup(patcher.stop)
 
@@ -109,7 +113,9 @@ class AuthFlowTests(TestCase):
         self.assertEqual(second.status_code, 200)
         self.assertFalse(second.json()["is_new_user"])
         self.assertEqual(User.objects.count(), 1)
-        self.assertEqual(DeviceSession.objects.filter(user__email="ada@example.com").count(), 2)
+        self.assertEqual(
+            DeviceSession.objects.filter(user__email="ada@example.com").count(), 2
+        )
 
     def test_display_name_prefers_the_google_name(self):
         response = self.sign_in()
@@ -133,17 +139,23 @@ class AuthFlowTests(TestCase):
 
     def test_refresh_rotates_the_token(self):
         refresh = self.sign_in().json()["refresh"]
-        response = self.client.post("/api/v1/auth/refresh/", {"refresh": refresh}, format="json")
+        response = self.client.post(
+            "/api/v1/auth/refresh/", {"refresh": refresh}, format="json"
+        )
         self.assertEqual(response.status_code, 200)
         rotated = response.json()["refresh"]
         self.assertNotEqual(refresh, rotated)
 
-        old = self.client.post("/api/v1/auth/refresh/", {"refresh": refresh}, format="json")
+        old = self.client.post(
+            "/api/v1/auth/refresh/", {"refresh": refresh}, format="json"
+        )
         self.assertEqual(old.status_code, 401)
         self.assertEqual(old.json()["error"]["code"], "session_revoked")
 
     def test_garbage_refresh_token_is_rejected(self):
-        response = self.client.post("/api/v1/auth/refresh/", {"refresh": "nope"}, format="json")
+        response = self.client.post(
+            "/api/v1/auth/refresh/", {"refresh": "nope"}, format="json"
+        )
         self.assertEqual(response.status_code, 401)
 
     def test_access_token_authenticates_the_api(self):
@@ -151,7 +163,9 @@ class AuthFlowTests(TestCase):
         client = APIClient()
         client.credentials(HTTP_AUTHORIZATION=f"Bearer {access}")
         self.assertEqual(client.get("/api/v1/auth/me/").status_code, 200)
-        self.assertEqual(client.get("/api/v1/auth/me/").json()["email"], "ada@example.com")
+        self.assertEqual(
+            client.get("/api/v1/auth/me/").json()["email"], "ada@example.com"
+        )
 
     def test_me_patch_updates_preferences(self):
         access = self.sign_in().json()["access"]
@@ -166,8 +180,12 @@ class AuthFlowTests(TestCase):
         self.sign_in()
         client = APIClient()
         client.credentials(HTTP_AUTHORIZATION=f"Bearer {first}")
-        self.assertEqual(client.post("/api/v1/auth/logout/", {}, format="json").status_code, 204)
-        self.assertEqual(DeviceSession.objects.filter(revoked_at__isnull=True).count(), 0)
+        self.assertEqual(
+            client.post("/api/v1/auth/logout/", {}, format="json").status_code, 204
+        )
+        self.assertEqual(
+            DeviceSession.objects.filter(revoked_at__isnull=True).count(), 0
+        )
 
         refresh_client = APIClient()
         stale = DeviceSession.objects.first()

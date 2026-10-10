@@ -17,7 +17,7 @@
 
   "[python]": {
     "editor.defaultFormatter": "ms-python.black-formatter",
-    "editor.rulers": [100]
+    "editor.rulers": [88]
   },
 
   // ---- isort ---------------------------------------------------------------

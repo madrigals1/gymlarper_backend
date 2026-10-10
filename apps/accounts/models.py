@@ -29,7 +29,9 @@ class UserProfile(models.Model):
         blank=True,
         related_name="default_for_users",
     )
-    bodyweight_kg = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
+    bodyweight_kg = models.DecimalField(
+        max_digits=6, decimal_places=2, null=True, blank=True
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

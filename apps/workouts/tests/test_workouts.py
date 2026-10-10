@@ -42,13 +42,17 @@ class ApiTestCase(TestCase):
 
 class WorkoutLifecycleTests(ApiTestCase):
     def test_start_finish_workout(self):
-        response = self.client.post("/api/v1/workouts/start/", {"name": "Evening"}, format="json")
+        response = self.client.post(
+            "/api/v1/workouts/start/", {"name": "Evening"}, format="json"
+        )
         self.assertEqual(response.status_code, 201)
         workout_id = response.json()["id"]
         self.assertIsNone(response.json()["finished_at"])
         self.assertTrue(response.json()["is_active"])
 
-        response = self.client.post(f"/api/v1/workouts/{workout_id}/finish/", {}, format="json")
+        response = self.client.post(
+            f"/api/v1/workouts/{workout_id}/finish/", {}, format="json"
+        )
         self.assertEqual(response.status_code, 200)
         self.assertIsNotNone(response.json()["finished_at"])
         self.assertFalse(response.json()["is_active"])
@@ -67,7 +71,9 @@ class WorkoutLifecycleTests(ApiTestCase):
 
     def test_cannot_finish_another_users_workout(self):
         victim = Workout.objects.create(user=self.other, started_at=timezone.now())
-        response = self.client.post(f"/api/v1/workouts/{victim.id}/finish/", {}, format="json")
+        response = self.client.post(
+            f"/api/v1/workouts/{victim.id}/finish/", {}, format="json"
+        )
         self.assertEqual(response.status_code, 404)
 
 
@@ -93,7 +99,9 @@ class SetLoggingTests(ApiTestCase):
             unit="kg",
         )
         response = self.client.post(
-            f"/api/v1/sets/{workout_set.id}/complete/", {"is_completed": True}, format="json"
+            f"/api/v1/sets/{workout_set.id}/complete/",
+            {"is_completed": True},
+            format="json",
         )
         self.assertEqual(response.status_code, 200)
         body = response.json()
@@ -114,7 +122,9 @@ class SetLoggingTests(ApiTestCase):
             completed_at=timezone.now(),
         )
         response = self.client.post(
-            f"/api/v1/sets/{workout_set.id}/complete/", {"is_completed": False}, format="json"
+            f"/api/v1/sets/{workout_set.id}/complete/",
+            {"is_completed": False},
+            format="json",
         )
         self.assertIsNone(response.json()["completed_at"])
         self.assertEqual(float(response.json()["volume_kg"]), 0.0)
@@ -129,7 +139,9 @@ class SetLoggingTests(ApiTestCase):
             unit="kg",
         )
         response = self.client.post(
-            f"/api/v1/workout-exercises/{self.workout_exercise.id}/add_set/", {}, format="json"
+            f"/api/v1/workout-exercises/{self.workout_exercise.id}/add_set/",
+            {},
+            format="json",
         )
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.json()["reps"], 12)
@@ -184,7 +196,9 @@ class AddExerciseTests(ApiTestCase):
             settings_json={"seat_height": 6},
         )
 
-        workout = Workout.objects.create(user=self.user, location=work, started_at=timezone.now())
+        workout = Workout.objects.create(
+            user=self.user, location=work, started_at=timezone.now()
+        )
         response = self.client.post(
             f"/api/v1/workouts/{workout.id}/exercises/",
             {"exercise": str(exercise.id), "position": 0},
@@ -217,7 +231,10 @@ class AddExerciseTests(ApiTestCase):
     def test_snapshot_survives_editing_the_setup(self):
         exercise = self.make_exercise(name="Leg Press")
         setup = MachineSetup.objects.create(
-            user=self.user, exercise=exercise, machine_name="Original", settings_json={"seat": 1}
+            user=self.user,
+            exercise=exercise,
+            machine_name="Original",
+            settings_json={"seat": 1},
         )
         workout = Workout.objects.create(user=self.user, started_at=timezone.now())
         response = self.client.post(
@@ -275,7 +292,9 @@ class TemplateTests(ApiTestCase):
 
     def test_duplicate_template_name_is_rejected(self):
         self.client.post("/api/v1/templates/", {"name": "PPL"}, format="json")
-        response = self.client.post("/api/v1/templates/", {"name": "PPL"}, format="json")
+        response = self.client.post(
+            "/api/v1/templates/", {"name": "PPL"}, format="json"
+        )
         self.assertEqual(response.status_code, 400)
         self.assertIn("name", response.json()["error"]["details"])
 
@@ -286,7 +305,11 @@ class TemplateTests(ApiTestCase):
             {
                 "name": "Bad",
                 "items": [
-                    {"exercise": str(exercise.id), "target_reps_min": 20, "target_reps_max": 5}
+                    {
+                        "exercise": str(exercise.id),
+                        "target_reps_min": 20,
+                        "target_reps_max": 5,
+                    }
                 ],
             },
             format="json",

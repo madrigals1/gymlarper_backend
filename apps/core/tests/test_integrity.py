@@ -23,10 +23,17 @@ class MigrationTests(TestCase):
         output = StringIO()
         try:
             call_command(
-                "makemigrations", "--check", "--dry-run", stdout=output, stderr=output, verbosity=0
+                "makemigrations",
+                "--check",
+                "--dry-run",
+                stdout=output,
+                stderr=output,
+                verbosity=0,
             )
         except SystemExit as exc:  # pragma: no cover - only on failure
-            self.fail(f"Models changed without a migration:\n{output.getvalue()}\n{exc}")
+            self.fail(
+                f"Models changed without a migration:\n{output.getvalue()}\n{exc}"
+            )
 
     def test_every_installed_app_has_migrations(self):
         """An app in INSTALLED_APPS with no migrations package is a silent trap."""

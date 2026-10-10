@@ -50,7 +50,14 @@ class PushTests(SyncTestCase):
     def test_update_with_correct_base_rev_applies(self):
         location = GymLocation.objects.create(user=self.user, name="Gym")
         response = self.push(
-            [self.op("location", {"name": "Renamed"}, op_id=location.id, base_rev=location.rev)]
+            [
+                self.op(
+                    "location",
+                    {"name": "Renamed"},
+                    op_id=location.id,
+                    base_rev=location.rev,
+                )
+            ]
         )
         result = response.json()["results"][0]
         self.assertEqual(result["status"], "applied")
@@ -62,7 +69,14 @@ class PushTests(SyncTestCase):
         location = GymLocation.objects.create(user=self.user, name="Gym")
         stale_rev = location.rev - 1
         response = self.push(
-            [self.op("location", {"name": "Clobbered"}, op_id=location.id, base_rev=stale_rev)]
+            [
+                self.op(
+                    "location",
+                    {"name": "Clobbered"},
+                    op_id=location.id,
+                    base_rev=stale_rev,
+                )
+            ]
         )
         result = response.json()["results"][0]
         self.assertEqual(result["status"], "conflict")
@@ -84,14 +98,30 @@ class PushTests(SyncTestCase):
     def test_delete_is_soft_and_idempotent(self):
         location = GymLocation.objects.create(user=self.user, name="Gym")
         response = self.push(
-            [self.op("location", {}, op_id=location.id, base_rev=location.rev, action="delete")]
+            [
+                self.op(
+                    "location",
+                    {},
+                    op_id=location.id,
+                    base_rev=location.rev,
+                    action="delete",
+                )
+            ]
         )
         self.assertEqual(response.json()["results"][0]["status"], "applied")
         location.refresh_from_db()
         self.assertIsNotNone(location.deleted_at)
 
         again = self.push(
-            [self.op("location", {}, op_id=location.id, base_rev=location.rev, action="delete")]
+            [
+                self.op(
+                    "location",
+                    {},
+                    op_id=location.id,
+                    base_rev=location.rev,
+                    action="delete",
+                )
+            ]
         )
         self.assertEqual(again.json()["results"][0]["status"], "applied")
         self.assertEqual(GymLocation.objects.filter(pk=location.id).count(), 1)
@@ -99,7 +129,11 @@ class PushTests(SyncTestCase):
     def test_cannot_write_to_another_users_row(self):
         victim = GymLocation.objects.create(user=self.other, name="Bob's gym")
         response = self.push(
-            [self.op("location", {"name": "Stolen"}, op_id=victim.id, base_rev=victim.rev)]
+            [
+                self.op(
+                    "location", {"name": "Stolen"}, op_id=victim.id, base_rev=victim.rev
+                )
+            ]
         )
         result = response.json()["results"][0]
         self.assertEqual(result["status"], "rejected")
@@ -107,12 +141,18 @@ class PushTests(SyncTestCase):
         self.assertEqual(victim.name, "Bob's gym")
 
     def test_cannot_attach_child_to_another_users_parent(self):
-        victim_workout = Workout.objects.create(user=self.other, started_at=timezone.now())
+        victim_workout = Workout.objects.create(
+            user=self.other, started_at=timezone.now()
+        )
         response = self.push(
             [
                 self.op(
                     "workout_exercise",
-                    {"workout": str(victim_workout.id), "exercise_name": "Squat", "position": 0},
+                    {
+                        "workout": str(victim_workout.id),
+                        "exercise_name": "Squat",
+                        "position": 0,
+                    },
                 )
             ]
         )
@@ -155,7 +195,11 @@ class PushTests(SyncTestCase):
             [
                 self.op(
                     "workout_exercise",
-                    {"workout": str(workout.id), "exercise": str(exercise.id), "position": 0},
+                    {
+                        "workout": str(workout.id),
+                        "exercise": str(exercise.id),
+                        "position": 0,
+                    },
                 )
             ]
         )
@@ -171,14 +215,20 @@ class PushTests(SyncTestCase):
         self.assertEqual(response.status_code, 401)
 
     def test_payload_validation(self):
-        self.assertEqual(self.client.post(PUSH, {"ops": "nope"}, format="json").status_code, 400)
+        self.assertEqual(
+            self.client.post(PUSH, {"ops": "nope"}, format="json").status_code, 400
+        )
 
     def test_batch_size_is_capped(self):
-        ops = [self.op("location", {"name": f"L{i}", "kind": "gym"}) for i in range(501)]
+        ops = [
+            self.op("location", {"name": f"L{i}", "kind": "gym"}) for i in range(501)
+        ]
         self.assertEqual(self.push(ops).status_code, 413)
 
     def make_exercise(self):
-        return Exercise.objects.create(user=self.user, name="Leg Press", equipment="machine")
+        return Exercise.objects.create(
+            user=self.user, name="Leg Press", equipment="machine"
+        )
 
 
 class PullTests(SyncTestCase):
@@ -224,7 +274,9 @@ class PullTests(SyncTestCase):
 
     def test_round_trip_push_then_pull(self):
         chosen = uuid.uuid4()
-        self.push([self.op("location", {"name": "Offline gym", "kind": "work"}, op_id=chosen)])
+        self.push(
+            [self.op("location", {"name": "Offline gym", "kind": "work"}, op_id=chosen)]
+        )
         body = self.client.get(f"{PULL}?since=0").json()
         stored = body["changes"]["location"][0]
         self.assertEqual(stored["id"], str(chosen))

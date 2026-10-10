@@ -29,7 +29,11 @@ class SessionBoundJWTAuthentication(JWTAuthentication):
             # them would leave a revocation bypass, so require a fresh sign-in.
             raise InvalidToken("Session-bound token required; please sign in again.")
 
-        session = DeviceSession.objects.filter(pk=session_id).only("user_id", "revoked_at").first()
+        session = (
+            DeviceSession.objects.filter(pk=session_id)
+            .only("user_id", "revoked_at")
+            .first()
+        )
         if session is None or not session.is_active:
             raise AuthenticationFailed("This session has been signed out.")
         if session.user_id != user.pk:

@@ -23,7 +23,9 @@ from apps.workouts.stats import (
 )
 
 
-def make_workout(user, *, days_ago=0, finished=True, sets=None, exercise=None, bodyweight=False):
+def make_workout(
+    user, *, days_ago=0, finished=True, sets=None, exercise=None, bodyweight=False
+):
     started = timezone.now() - timedelta(days=days_ago)
     workout = Workout.objects.create(user=user, started_at=started)
     if finished:
@@ -67,7 +69,9 @@ class UnitConversionTests(TestCase):
         self.assertAlmostEqual(float(unit_utils.to_kg(100, "lb")), 45.359237, places=2)
 
     def test_kg_to_pounds(self):
-        self.assertEqual(unit_utils.from_kg(Decimal("45.359237"), "lb"), Decimal("100.00"))
+        self.assertEqual(
+            unit_utils.from_kg(Decimal("45.359237"), "lb"), Decimal("100.00")
+        )
 
     def test_round_trip_lb_is_stable_to_the_cent(self):
         kg = unit_utils.to_kg("225", "lb")
@@ -78,7 +82,9 @@ class UnitConversionTests(TestCase):
         self.assertEqual(unit_utils.normalise_unit(None), "kg")
 
     def test_convert_between_units(self):
-        self.assertEqual(unit_utils.convert(100, "lb", "kg"), unit_utils.to_kg(100, "lb"))
+        self.assertEqual(
+            unit_utils.convert(100, "lb", "kg"), unit_utils.to_kg(100, "lb")
+        )
         self.assertEqual(unit_utils.convert(100, "kg", "kg"), Decimal("100"))
 
 
@@ -175,8 +181,12 @@ class PersonalRecordTests(TestCase):
         self.assertAlmostEqual(record["est_1rm_kg"], 116.67, places=1)
 
     def test_records_are_grouped_per_exercise(self):
-        squat = Exercise.objects.create(user=self.user, name="Squat", muscle_group="quads")
-        bench = Exercise.objects.create(user=self.user, name="Bench", muscle_group="chest")
+        squat = Exercise.objects.create(
+            user=self.user, name="Squat", muscle_group="quads"
+        )
+        bench = Exercise.objects.create(
+            user=self.user, name="Bench", muscle_group="chest"
+        )
         make_workout(self.user, sets=[(5, "100", "kg")], exercise=squat)
         make_workout(self.user, sets=[(5, "60", "kg")], exercise=bench)
         records = personal_records(self.user)["records"]
@@ -211,8 +221,12 @@ class WeeklyVolumeTests(TestCase):
         self.assertAlmostEqual(series[-1]["volume"], 2204.62, places=1)
 
     def test_volume_by_muscle(self):
-        squat = Exercise.objects.create(user=self.user, name="Squat", muscle_group="quads")
-        bench = Exercise.objects.create(user=self.user, name="Bench", muscle_group="chest")
+        squat = Exercise.objects.create(
+            user=self.user, name="Squat", muscle_group="quads"
+        )
+        bench = Exercise.objects.create(
+            user=self.user, name="Bench", muscle_group="chest"
+        )
         make_workout(self.user, sets=[(10, "100", "kg")], exercise=squat)
         make_workout(self.user, sets=[(10, "40", "kg")], exercise=bench)
         rows = volume_by_muscle(self.user)

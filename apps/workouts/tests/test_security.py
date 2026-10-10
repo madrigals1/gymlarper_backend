@@ -40,11 +40,18 @@ class TenantTestCase(TestCase):
         self.bob_api.force_authenticate(self.bob)
 
         # Bob's private data.
-        self.bob_location = GymLocation.objects.create(user=self.bob, name="Bob Secret Gym")
-        self.bob_exercise = Exercise.objects.create(
-            user=self.bob, name="Bob Secret Lift", muscle_group="back", equipment="cable"
+        self.bob_location = GymLocation.objects.create(
+            user=self.bob, name="Bob Secret Gym"
         )
-        self.bob_workout = Workout.objects.create(user=self.bob, started_at=timezone.now())
+        self.bob_exercise = Exercise.objects.create(
+            user=self.bob,
+            name="Bob Secret Lift",
+            muscle_group="back",
+            equipment="cable",
+        )
+        self.bob_workout = Workout.objects.create(
+            user=self.bob, started_at=timezone.now()
+        )
         self.bob_workout_exercise = WorkoutExercise.objects.create(
             user=self.bob,
             workout=self.bob_workout,
@@ -85,7 +92,11 @@ class CrossTenantWriteTests(TenantTestCase):
     def test_injected_set_does_not_inflate_the_victims_volume(self):
         self.ada_api.post(
             "/api/v1/sets/",
-            {"workout_exercise": str(self.bob_workout_exercise.id), "reps": 999, "weight": "500"},
+            {
+                "workout_exercise": str(self.bob_workout_exercise.id),
+                "reps": 999,
+                "weight": "500",
+            },
             format="json",
         )
         self.bob_workout.refresh_from_db()
@@ -137,7 +148,9 @@ class CrossTenantWriteTests(TenantTestCase):
 
     def test_profile_cannot_point_at_another_users_location(self):
         response = self.ada_api.patch(
-            "/api/v1/auth/me/", {"default_location": str(self.bob_location.id)}, format="json"
+            "/api/v1/auth/me/",
+            {"default_location": str(self.bob_location.id)},
+            format="json",
         )
         self.assertEqual(response.status_code, 400)
 
@@ -158,14 +171,18 @@ class CrossTenantWriteTests(TenantTestCase):
         )
         self.assertEqual(
             self.ada_api.post(
-                f"/api/v1/sets/{self.bob_set.id}/complete/", {"is_completed": True}, format="json"
+                f"/api/v1/sets/{self.bob_set.id}/complete/",
+                {"is_completed": True},
+                format="json",
             ).status_code,
             404,
         )
 
     def test_start_workout_ignores_a_foreign_location_id(self):
         response = self.ada_api.post(
-            "/api/v1/workouts/start/", {"location": str(self.bob_location.id)}, format="json"
+            "/api/v1/workouts/start/",
+            {"location": str(self.bob_location.id)},
+            format="json",
         )
         self.assertIn(response.status_code, (200, 201))
         workout_id = response.json()["id"]
@@ -200,7 +217,9 @@ class CursorIntegrityTests(TenantTestCase):
         Workout.objects.create(user=self.ada, started_at=timezone.now())
         first = self.ada_api.get("/api/v1/sync/pull/?since=0&limit=100").json()
         self.assertFalse(first["has_more"])
-        second = self.ada_api.get(f"/api/v1/sync/pull/?since={first['cursor']}&limit=100").json()
+        second = self.ada_api.get(
+            f"/api/v1/sync/pull/?since={first['cursor']}&limit=100"
+        ).json()
         self.assertEqual(second["changes"], {})
         self.assertEqual(second["cursor"], first["cursor"])
 
@@ -213,7 +232,9 @@ class GoogleIdentityTests(TestCase):
     def _signin(self, claims):
         from unittest import mock
 
-        patcher = mock.patch("apps.accounts.google._fetch_verified_claims", return_value=claims)
+        patcher = mock.patch(
+            "apps.accounts.google._fetch_verified_claims", return_value=claims
+        )
         token_mock = patcher.start()
         self.addCleanup(patcher.stop)
         return APIClient(), token_mock
@@ -244,7 +265,10 @@ class GoogleIdentityTests(TestCase):
         }
         api, patcher = self._signin(first)
         self.assertEqual(
-            api.post("/api/v1/auth/google/", {"id_token": "x"}, format="json").status_code, 201
+            api.post(
+                "/api/v1/auth/google/", {"id_token": "x"}, format="json"
+            ).status_code,
+            201,
         )
 
         attacker = dict(first, sub="sub-ATTACKER", name="Mallory")
@@ -279,7 +303,9 @@ class SessionRevocationTests(TestCase):
         self.addCleanup(patcher.stop)
 
         self.api = APIClient()
-        body = self.api.post("/api/v1/auth/google/", {"id_token": "x"}, format="json").json()
+        body = self.api.post(
+            "/api/v1/auth/google/", {"id_token": "x"}, format="json"
+        ).json()
         self.access = body["access"]
         self.user = User.objects.get(email="ada@example.com")
 
@@ -293,14 +319,17 @@ class SessionRevocationTests(TestCase):
 
     def test_logout_invalidates_the_live_access_token(self):
         self.assertEqual(
-            self.authed().post("/api/v1/auth/logout/", {}, format="json").status_code, 204
+            self.authed().post("/api/v1/auth/logout/", {}, format="json").status_code,
+            204,
         )
         response = self.authed().get("/api/v1/auth/me/")
         self.assertEqual(response.status_code, 401)
 
     def test_revoking_one_device_kills_its_access_token(self):
         other = self.api.post(
-            "/api/v1/auth/google/", {"id_token": "x", "device_name": "other"}, format="json"
+            "/api/v1/auth/google/",
+            {"id_token": "x", "device_name": "other"},
+            format="json",
         ).json()
         session_id = other["session_id"]
 
@@ -317,11 +346,13 @@ class SessionRevocationTests(TestCase):
         self.assertEqual(client.get("/api/v1/auth/me/").status_code, 401)
 
     def test_refresh_after_logout_is_refused(self):
-        refresh = self.api.post("/api/v1/auth/google/", {"id_token": "x"}, format="json").json()[
-            "refresh"
-        ]
+        refresh = self.api.post(
+            "/api/v1/auth/google/", {"id_token": "x"}, format="json"
+        ).json()["refresh"]
         self.authed().post("/api/v1/auth/logout/", {}, format="json")
-        response = self.api.post("/api/v1/auth/refresh/", {"refresh": refresh}, format="json")
+        response = self.api.post(
+            "/api/v1/auth/refresh/", {"refresh": refresh}, format="json"
+        )
         self.assertEqual(response.status_code, 401)
 
 
@@ -346,7 +377,9 @@ class PasswordChangeTests(TestCase):
         self.addCleanup(patcher.stop)
 
         self.api = APIClient()
-        body = self.api.post("/api/v1/auth/google/", {"id_token": "x"}, format="json").json()
+        body = self.api.post(
+            "/api/v1/auth/google/", {"id_token": "x"}, format="json"
+        ).json()
         self.access = body["access"]
         self.user = User.objects.get(email="ada@example.com")
 
@@ -406,7 +439,9 @@ class ConfigurationTests(TestCase):
                 "apps.accounts.google._fetch_verified_claims",
                 return_value={"sub": "s", "email": "a@e.com"},
             ):
-                response = api.post("/api/v1/auth/google/", {"id_token": "x"}, format="json")
+                response = api.post(
+                    "/api/v1/auth/google/", {"id_token": "x"}, format="json"
+                )
         self.assertEqual(response.status_code, 401)
         self.assertEqual(response.json()["error"]["code"], "not_configured")
 
@@ -445,7 +480,9 @@ class BulkUpdateTests(TestCase):
         exercise = Exercise.objects.create(user=self.user, name="Squat")
         template = WorkoutTemplate.objects.create(user=self.user, name="Legs")
         other = User.objects.create_user(username="bob", email="bob@example.com")
-        foreign = TemplateItem.objects.create(user=other, template=template, exercise=exercise)
+        foreign = TemplateItem.objects.create(
+            user=other, template=template, exercise=exercise
+        )
         response = self.api.post(
             f"/api/v1/templates/{template.id}/items/reorder/",
             {"order": [str(foreign.id)]},
@@ -484,10 +521,17 @@ class InputHardeningTests(TestCase):
         )
         self.exercise = Exercise.objects.create(user=self.user, name="Leg Press")
         self.we = WorkoutExercise.objects.create(
-            user=self.user, workout=self.workout, exercise=self.exercise, exercise_name="Leg Press"
+            user=self.user,
+            workout=self.workout,
+            exercise=self.exercise,
+            exercise_name="Leg Press",
         )
         self.workout_set = WorkoutSet.objects.create(
-            user=self.user, workout_exercise=self.we, reps=10, weight=Decimal("100"), unit="kg"
+            user=self.user,
+            workout_exercise=self.we,
+            reps=10,
+            weight=Decimal("100"),
+            unit="kg",
         )
 
     def test_target_sets_is_capped(self):
@@ -535,7 +579,9 @@ class InputHardeningTests(TestCase):
             self.assertEqual(self.api.get(url).status_code, 200, url)
 
     def test_unknown_unit_falls_back_to_kg(self):
-        response = self.api.post("/api/v1/workouts/start/", {"unit": "stone"}, format="json")
+        response = self.api.post(
+            "/api/v1/workouts/start/", {"unit": "stone"}, format="json"
+        )
         self.assertEqual(response.status_code, 201)
         self.assertEqual(Workout.objects.get(pk=response.json()["id"]).unit, "kg")
 
@@ -588,9 +634,15 @@ class ThrottlingTests(TestCase):
         # throttling off. Patch both attributes to exercise the real code path.
         cache.clear()
         api = APIClient()
-        with mock.patch("apps.accounts.google._fetch_verified_claims", return_value=claims):
-            with mock.patch.dict(ScopedRateThrottle.THROTTLE_RATES, {"google_signin": "3/min"}):
-                with mock.patch.object(GoogleSignInView, "throttle_classes", [ScopedRateThrottle]):
+        with mock.patch(
+            "apps.accounts.google._fetch_verified_claims", return_value=claims
+        ):
+            with mock.patch.dict(
+                ScopedRateThrottle.THROTTLE_RATES, {"google_signin": "3/min"}
+            ):
+                with mock.patch.object(
+                    GoogleSignInView, "throttle_classes", [ScopedRateThrottle]
+                ):
                     codes = [
                         api.post(
                             "/api/v1/auth/google/", {"id_token": "x"}, format="json"
@@ -631,7 +683,9 @@ class ProxyHeaderTests(TestCase):
     def test_trust_forwarded_proto_header_is_configured(self):
         from django.conf import settings
 
-        self.assertEqual(settings.SECURE_PROXY_SSL_HEADER, ("HTTP_X_FORWARDED_PROTO", "https"))
+        self.assertEqual(
+            settings.SECURE_PROXY_SSL_HEADER, ("HTTP_X_FORWARDED_PROTO", "https")
+        )
 
     @override_settings(SECURE_SSL_REDIRECT=True)
     def test_https_via_forwarded_proto_is_served(self):

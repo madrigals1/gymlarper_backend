@@ -39,7 +39,9 @@ class GoogleSignInSerializer(serializers.Serializer):
     """Payload posted by the Flutter client straight after a Google sign-in."""
 
     id_token = serializers.CharField(write_only=True, trim_whitespace=False)
-    device_name = serializers.CharField(required=False, allow_blank=True, max_length=120)
+    device_name = serializers.CharField(
+        required=False, allow_blank=True, max_length=120
+    )
     platform = serializers.CharField(required=False, allow_blank=True, max_length=32)
     app_version = serializers.CharField(required=False, allow_blank=True, max_length=32)
 
@@ -74,17 +76,25 @@ class ChangePasswordSerializer(serializers.Serializer):
     users out entirely. Instead they must re-present a fresh Google ID token.
     """
 
-    current_password = serializers.CharField(write_only=True, required=False, allow_blank=True)
-    new_password = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    current_password = serializers.CharField(
+        write_only=True, required=False, allow_blank=True
+    )
+    new_password = serializers.CharField(
+        write_only=True, required=False, allow_blank=True
+    )
     google_id_token = serializers.CharField(
         write_only=True, required=False, allow_blank=True, trim_whitespace=False
     )
 
     def validate(self, attrs):
         if not attrs.get("new_password"):
-            raise serializers.ValidationError({"new_password": "This field is required."})
+            raise serializers.ValidationError(
+                {"new_password": "This field is required."}
+            )
         if len(attrs["new_password"]) < 8:
-            raise serializers.ValidationError({"new_password": "Use at least 8 characters."})
+            raise serializers.ValidationError(
+                {"new_password": "Use at least 8 characters."}
+            )
 
         from django.contrib.auth.password_validation import validate_password
         from django.core.exceptions import ValidationError as DjangoValidationError
@@ -92,7 +102,9 @@ class ChangePasswordSerializer(serializers.Serializer):
         try:
             validate_password(attrs["new_password"])
         except DjangoValidationError as exc:
-            raise serializers.ValidationError({"new_password": list(exc.messages)}) from exc
+            raise serializers.ValidationError(
+                {"new_password": list(exc.messages)}
+            ) from exc
         return attrs
 
 

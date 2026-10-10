@@ -47,7 +47,11 @@ def _username_for(identity: GoogleIdentity) -> str:
 @transaction.atomic
 def resolve_user(identity: GoogleIdentity) -> tuple[User, bool]:
     """Find or create the Django user behind a verified Google identity."""
-    profile = UserProfile.objects.filter(google_sub=identity.sub).select_related("user").first()
+    profile = (
+        UserProfile.objects.filter(google_sub=identity.sub)
+        .select_related("user")
+        .first()
+    )
     if profile:
         user = profile.user
         created = False
@@ -97,7 +101,9 @@ def resolve_user(identity: GoogleIdentity) -> tuple[User, bool]:
     return user, created
 
 
-def issue_tokens(user: User, *, device_name: str, platform: str, app_version: str) -> dict:
+def issue_tokens(
+    user: User, *, device_name: str, platform: str, app_version: str
+) -> dict:
     """Mint an access/refresh pair and record the device it belongs to."""
     refresh = RefreshToken.for_user(user)
     session = DeviceSession.objects.create(
@@ -194,7 +200,9 @@ class RefreshView(APIView):
             )
 
         session = (
-            DeviceSession.objects.select_for_update().filter(token_hash=hash_token(raw)).first()
+            DeviceSession.objects.select_for_update()
+            .filter(token_hash=hash_token(raw))
+            .first()
         )
         if session is None or not session.is_active:
             # Either signed out, or the token was rotated away. Either way this
@@ -233,7 +241,9 @@ class RefreshView(APIView):
                 "access": _access_for(new_refresh, session),
                 "refresh": str(new_refresh),
                 "session_id": session.id,
-                "expires_in": int(settings.SIMPLE_JWT["ACCESS_TOKEN_LIFETIME"].total_seconds()),
+                "expires_in": int(
+                    settings.SIMPLE_JWT["ACCESS_TOKEN_LIFETIME"].total_seconds()
+                ),
             }
         )
 
@@ -258,7 +268,9 @@ class MeView(APIView):
 def _touch_session(request) -> None:
     """Keep 'last seen' honest for the active-devices screen."""
     session_id = (
-        (getattr(request, "auth", None) or {}).get("sid") if hasattr(request, "auth") else None
+        (getattr(request, "auth", None) or {}).get("sid")
+        if hasattr(request, "auth")
+        else None
     )
     if session_id:
         DeviceSession.objects.filter(pk=session_id).update(last_seen_at=timezone.now())
@@ -280,7 +292,9 @@ class DeviceSessionListView(ListAPIView):
     serializer_class = DeviceSessionSerializer
 
     def get_queryset(self):
-        return DeviceSession.objects.filter(user=self.request.user, revoked_at__isnull=True)
+        return DeviceSession.objects.filter(
+            user=self.request.user, revoked_at__isnull=True
+        )
 
 
 class DeviceSessionRevokeView(APIView):
@@ -312,7 +326,9 @@ class ChangePasswordView(APIView):
         user = request.user
 
         if user.has_usable_password():
-            if not user.check_password(serializer.validated_data.get("current_password", "")):
+            if not user.check_password(
+                serializer.validated_data.get("current_password", "")
+            ):
                 return Response(
                     {
                         "error": {
@@ -344,7 +360,8 @@ class ChangePasswordView(APIView):
                     {
                         "error": {
                             "code": "identity_conflict",
-                            "message": "That Google account is not linked to this user.",
+                            "message": "That Google account is not "
+                            "linked to this user.",
                             "details": {},
                         }
                     },

@@ -4,7 +4,7 @@
 # installable package, just a home for formatter settings.
 
 [tool.black]
-line-length = 100
+line-length = 88
 target-version = ["py314"]
 # Django migrations are machine-generated; reformatting them only creates noise
 # in diffs and makes future `makemigrations` output confusing.
@@ -17,6 +17,6 @@ extend-exclude = '''
 
 [tool.isort]
 profile = "black"          # keeps isort and black from fighting over wrapping
-line_length = 100
+line_length = 88
 skip_glob = [".venv/*", "*/migrations/*"]
 known_first_party = ["apps", "config"]

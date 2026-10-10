@@ -45,7 +45,9 @@ class Client:
         self.base_url = base_url.rstrip("/")
         self.access: str | None = None
 
-    def call(self, method: str, path: str, body=None, *, auth: bool = True, raw_token=None):
+    def call(
+        self, method: str, path: str, body=None, *, auth: bool = True, raw_token=None
+    ):
         url = f"{self.base_url}{path}"
         payload = None if body is None else json.dumps(body).encode()
         request = urllib.request.Request(url, data=payload, method=method)
@@ -104,7 +106,9 @@ def main() -> int:
     print("\n== auth ==")
     if args.id_token:
         status, body = api.post(
-            "/api/v1/auth/google/", {"id_token": args.id_token, "platform": "smoke"}, auth=False
+            "/api/v1/auth/google/",
+            {"id_token": args.id_token, "platform": "smoke"},
+            auth=False,
         )
         if not result.check(
             "Google sign-in accepted", status in (200, 201), f"got {status}: {body}"
@@ -121,7 +125,9 @@ def main() -> int:
         result.check("profile carries an email", bool((me or {}).get("email")))
 
         status, _ = api.get("/api/v1/auth/me/", auth=False)
-        result.check("rejects an unauthenticated request", status == 401, f"got {status}")
+        result.check(
+            "rejects an unauthenticated request", status == 401, f"got {status}"
+        )
 
         status, _ = api.get("/api/v1/auth/me/", raw_token="not-a-real-token")
         result.check("rejects a forged token", status == 401, f"got {status}")
@@ -129,28 +135,41 @@ def main() -> int:
     print("\n== locations ==")
     status, defaults = api.get("/api/v1/locations/defaults/")
     if result.check(
-        "GET /locations/defaults seeds home + work", status == 200 and len(defaults or []) == 2
+        "GET /locations/defaults seeds home + work",
+        status == 200 and len(defaults or []) == 2,
     ):
         result.check(
             "both defaults created",
             {item["kind"] for item in defaults} == {"home", "work"},
         )
-    status, duplicate = api.post("/api/v1/locations/", {"name": "Home gym", "kind": "home"})
-    result.check("duplicate location name rejected with 400", status == 400, f"got {status}")
+    status, duplicate = api.post(
+        "/api/v1/locations/", {"name": "Home gym", "kind": "home"}
+    )
+    result.check(
+        "duplicate location name rejected with 400", status == 400, f"got {status}"
+    )
 
     gym_name = f"Smoke Gym {run_id}"
     status, location = api.post("/api/v1/locations/", {"name": gym_name, "kind": "gym"})
-    if not result.check("created a gym location", status == 201, f"got {status}: {location}"):
+    if not result.check(
+        "created a gym location", status == 201, f"got {status}: {location}"
+    ):
         return 1
     location_id = location["id"]
-    result.check("location has a revision", location.get("rev") == 1, f"rev={location.get('rev')}")
+    result.check(
+        "location has a revision",
+        location.get("rev") == 1,
+        f"rev={location.get('rev')}",
+    )
 
     print("\n== exercises & machine settings ==")
     status, exercise = api.post(
         "/api/v1/exercises/",
         {"name": f"Seated Row {run_id}", "muscle_group": "back", "equipment": "cable"},
     )
-    if not result.check("created an exercise", status == 201, f"got {status}: {exercise}"):
+    if not result.check(
+        "created an exercise", status == 201, f"got {status}: {exercise}"
+    ):
         return 1
     exercise_id = exercise["id"]
 
@@ -191,7 +210,9 @@ def main() -> int:
             ],
         },
     )
-    if not result.check("created a template", status == 201, f"got {status}: {template}"):
+    if not result.check(
+        "created a template", status == 201, f"got {status}: {template}"
+    ):
         return 1
     result.check("template counts its items", template.get("item_count") == 1)
     template_id = template["id"]
@@ -206,7 +227,9 @@ def main() -> int:
         return 1
     workout_id = workout["id"]
     result.check("workout is active", workout.get("is_active") is True)
-    result.check("pre-created the prescribed sets", len(workout["exercises"][0]["sets"]) == 3)
+    result.check(
+        "pre-created the prescribed sets", len(workout["exercises"][0]["sets"]) == 3
+    )
     result.check(
         "snapshotted the machine name",
         workout["exercises"][0].get("machine_name") == "Cybex Eagle NX",
@@ -214,7 +237,9 @@ def main() -> int:
     )
 
     status, active = api.get("/api/v1/workouts/active/")
-    result.check("active workout is discoverable", status == 200 and active["id"] == workout_id)
+    result.check(
+        "active workout is discoverable", status == 200 and active["id"] == workout_id
+    )
 
     status, again = api.post("/api/v1/workouts/start/", {})
     result.check("a second Start reuses the session", again["id"] == workout_id)
@@ -225,7 +250,9 @@ def main() -> int:
         f"/api/v1/sets/{set_id}/complete/",
         {"is_completed": True, "reps": 10, "weight": "60", "unit": "kg"},
     )
-    result.check("completed a set", status == 200 and completed["is_completed"], f"got {status}")
+    result.check(
+        "completed a set", status == 200 and completed["is_completed"], f"got {status}"
+    )
     result.check("volume is 60 x 10 = 600kg", float(completed["volume_kg"]) == 600.0)
     result.check("estimated 1RM is 80kg", abs(completed["epley_1rm"] - 80.0) < 0.01)
 
@@ -240,13 +267,18 @@ def main() -> int:
                     "id": offline_id,
                     "action": "upsert",
                     "base_rev": 0,
-                    "data": {"name": f"Logged While Offline {run_id}", "equipment": "barbell"},
+                    "data": {
+                        "name": f"Logged While Offline {run_id}",
+                        "equipment": "barbell",
+                    },
                 }
             ]
         },
     )
     result.check("pushed an offline-created record", status == 200, f"got {status}")
-    result.check("server honoured the client UUID", pushed["results"][0]["id"] == offline_id)
+    result.check(
+        "server honoured the client UUID", pushed["results"][0]["id"] == offline_id
+    )
     created_rev = pushed["results"][0]["rev"]
 
     status, replayed = api.post(
@@ -258,12 +290,18 @@ def main() -> int:
                     "id": offline_id,
                     "action": "upsert",
                     "base_rev": 0,
-                    "data": {"name": f"Logged While Offline {run_id}", "equipment": "barbell"},
+                    "data": {
+                        "name": f"Logged While Offline {run_id}",
+                        "equipment": "barbell",
+                    },
                 }
             ]
         },
     )
-    result.check("replaying the same push is safe", replayed["results"][0]["status"] == "conflict")
+    result.check(
+        "replaying the same push is safe",
+        replayed["results"][0]["status"] == "conflict",
+    )
     result.check("no duplicate row was created", replayed["applied"] == 0)
 
     status, updated = api.post(
@@ -280,7 +318,10 @@ def main() -> int:
             ]
         },
     )
-    result.check("update with the right rev applies", updated["results"][0]["status"] == "applied")
+    result.check(
+        "update with the right rev applies",
+        updated["results"][0]["status"] == "applied",
+    )
 
     status, stale = api.post(
         "/api/v1/sync/push/",
@@ -297,7 +338,8 @@ def main() -> int:
         },
     )
     result.check(
-        "stale write is rejected as a conflict", stale["results"][0]["status"] == "conflict"
+        "stale write is rejected as a conflict",
+        stale["results"][0]["status"] == "conflict",
     )
     result.check(
         "server data survived the stale write",
@@ -305,7 +347,9 @@ def main() -> int:
     )
 
     status, pulled = api.get("/api/v1/sync/pull/?since=0")
-    result.check("delta pull returns records", status == 200 and "exercise" in pulled["changes"])
+    result.check(
+        "delta pull returns records", status == 200 and "exercise" in pulled["changes"]
+    )
     result.check("pull exposes a cursor", isinstance(pulled.get("cursor"), int))
 
     first_cursor = pulled["cursor"]
@@ -316,7 +360,9 @@ def main() -> int:
     status, tombstoned = api.get(f"/api/v1/sync/pull/?since={first_cursor}")
     names = [item.get("name") for item in tombstoned["changes"].get("exercise", [])]
     result.check(
-        "delete propagates as a tombstone", f"Renamed Offline {run_id}" in names, f"got {names}"
+        "delete propagates as a tombstone",
+        f"Renamed Offline {run_id}" in names,
+        f"got {names}",
     )
 
     print("\n== dashboard ==")
@@ -326,7 +372,8 @@ def main() -> int:
 
     status, weekly = api.get("/api/v1/dashboard/weekly-volume/?weeks=4")
     result.check(
-        "weekly volume returns a dense series", status == 200 and len(weekly["series"]) == 4
+        "weekly volume returns a dense series",
+        status == 200 and len(weekly["series"]) == 4,
     )
 
     status, records = api.get("/api/v1/dashboard/personal-records/")

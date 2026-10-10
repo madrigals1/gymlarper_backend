@@ -53,7 +53,8 @@ class UniqueNamePerUserMixin(serializers.Serializer):
             queryset = queryset.exclude(pk=self.instance.pk)
         if queryset.exists():
             raise serializers.ValidationError(
-                f"You already have a {self.Meta.model._meta.verbose_name} called '{name}'."
+                f"You already have a "
+                f"{self.Meta.model._meta.verbose_name} called '{name}'."
             )
         return name
 
@@ -136,7 +137,9 @@ class ExerciseSerializer(
 
 class MachineSetupSerializer(OwnerScopedRelationsMixin, serializers.ModelSerializer):
     exercise_name = serializers.CharField(source="exercise.name", read_only=True)
-    location_name = serializers.CharField(source="location.name", read_only=True, default=None)
+    location_name = serializers.CharField(
+        source="location.name", read_only=True, default=None
+    )
 
     class Meta:
         model = MachineSetup
@@ -173,8 +176,12 @@ class MachineSetupSerializer(OwnerScopedRelationsMixin, serializers.ModelSeriali
         cleaned = {}
         for key, item in value.items():
             if not isinstance(key, str) or not key.strip():
-                raise serializers.ValidationError("Setting keys must be non-empty strings.")
-            if isinstance(item, bool) or not isinstance(item, (int, float, str, type(None))):
+                raise serializers.ValidationError(
+                    "Setting keys must be non-empty strings."
+                )
+            if isinstance(item, bool) or not isinstance(
+                item, (int, float, str, type(None))
+            ):
                 raise serializers.ValidationError(
                     f"Setting '{key}' must be a number, string or empty."
                 )
@@ -213,11 +220,22 @@ class TemplateItemSerializer(OwnerScopedRelationsMixin, serializers.ModelSeriali
             "updated_at",
             "deleted_at",
         )
-        read_only_fields = ("id", "rev", "exercise_name", "created_at", "updated_at", "deleted_at")
+        read_only_fields = (
+            "id",
+            "rev",
+            "exercise_name",
+            "created_at",
+            "updated_at",
+            "deleted_at",
+        )
 
     def validate(self, attrs):
-        lo = attrs.get("target_reps_min", getattr(self.instance, "target_reps_min", None))
-        hi = attrs.get("target_reps_max", getattr(self.instance, "target_reps_max", None))
+        lo = attrs.get(
+            "target_reps_min", getattr(self.instance, "target_reps_min", None)
+        )
+        hi = attrs.get(
+            "target_reps_max", getattr(self.instance, "target_reps_max", None)
+        )
         if lo is not None and hi is not None and lo > hi:
             raise serializers.ValidationError(
                 {"target_reps_min": "Minimum reps cannot exceed the maximum."}
@@ -293,7 +311,9 @@ class WorkoutTemplateSerializer(
         instance.save()
 
         if items is not None:
-            instance.items.filter(deleted_at__isnull=True).update(deleted_at=timezone.now())
+            instance.items.filter(deleted_at__isnull=True).update(
+                deleted_at=timezone.now()
+            )
             instance.items_version += 1
             instance.save(update_fields=["items_version"])
             self._write_items(instance, items)
@@ -306,7 +326,9 @@ class WorkoutTemplateSerializer(
             payload["position"] = payload.get("position", index)
             serializer = TemplateItemSerializer(data=payload, context=self.context)
             serializer.is_valid(raise_exception=True)
-            serializer.save(template=template, position=payload["position"], user=template.user)
+            serializer.save(
+                template=template, position=payload["position"], user=template.user
+            )
 
 
 # --- Workouts ----------------------------------------------------------------
@@ -352,7 +374,9 @@ class WorkoutSetSerializer(OwnerScopedRelationsMixin, serializers.ModelSerialize
         return unit_utils.normalise_unit(value)
 
     def validate(self, attrs):
-        reps = attrs.get("reps", getattr(self.instance, "reps", 0) if self.instance else 0)
+        reps = attrs.get(
+            "reps", getattr(self.instance, "reps", 0) if self.instance else 0
+        )
         if reps is None or reps < 0:
             raise serializers.ValidationError({"reps": "Reps cannot be negative."})
         weight = attrs.get(
@@ -419,8 +443,12 @@ class WorkoutSerializer(OwnerScopedRelationsMixin, serializers.ModelSerializer):
     is_active = serializers.BooleanField(read_only=True)
     duration_seconds = serializers.IntegerField(read_only=True)
     volume = serializers.FloatField(read_only=True)
-    location_name = serializers.CharField(source="location.name", read_only=True, default=None)
-    template_name = serializers.CharField(source="template.name", read_only=True, default=None)
+    location_name = serializers.CharField(
+        source="location.name", read_only=True, default=None
+    )
+    template_name = serializers.CharField(
+        source="template.name", read_only=True, default=None
+    )
     exercises = WorkoutExerciseSerializer(many=True, read_only=True)
 
     class Meta:
@@ -468,10 +496,12 @@ class WorkoutSerializer(OwnerScopedRelationsMixin, serializers.ModelSerializer):
 
     def validate(self, attrs):
         started = attrs.get(
-            "started_at", getattr(self.instance, "started_at", None) if self.instance else None
+            "started_at",
+            getattr(self.instance, "started_at", None) if self.instance else None,
         )
         finished = attrs.get(
-            "finished_at", getattr(self.instance, "finished_at", None) if self.instance else None
+            "finished_at",
+            getattr(self.instance, "finished_at", None) if self.instance else None,
         )
         if started and finished and finished < started:
             raise serializers.ValidationError(
@@ -480,10 +510,14 @@ class WorkoutSerializer(OwnerScopedRelationsMixin, serializers.ModelSerializer):
         return attrs
 
 
-class WorkoutTemplatePreviewSerializer(OwnerScopedRelationsMixin, serializers.Serializer):
+class WorkoutTemplatePreviewSerializer(
+    OwnerScopedRelationsMixin, serializers.Serializer
+):
     """Start a workout from a template without duplicating its items."""
 
-    template = serializers.PrimaryKeyRelatedField(queryset=WorkoutTemplate.objects.all())
+    template = serializers.PrimaryKeyRelatedField(
+        queryset=WorkoutTemplate.objects.all()
+    )
     location = serializers.PrimaryKeyRelatedField(
         queryset=GymLocation.objects.all(), required=False, allow_null=True
     )
@@ -494,7 +528,9 @@ class WorkoutTemplatePreviewSerializer(OwnerScopedRelationsMixin, serializers.Se
 class ExercisePresetSerializer(serializers.Serializer):
     """Copy a known machine configuration onto a newly started exercise."""
 
-    machine_name = serializers.CharField(required=False, allow_blank=True, max_length=120)
+    machine_name = serializers.CharField(
+        required=False, allow_blank=True, max_length=120
+    )
     machine_settings = serializers.DictField(required=False, default=dict)
 
 

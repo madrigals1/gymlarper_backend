@@ -28,7 +28,9 @@ from django.utils import timezone
 class SyncState(models.Model):
     """Monotonic per-user sequence used as the delta-pull cursor."""
 
-    user = models.OneToOneField("auth.User", on_delete=models.CASCADE, related_name="sync_state")
+    user = models.OneToOneField(
+        "auth.User", on_delete=models.CASCADE, related_name="sync_state"
+    )
     seq = models.BigIntegerField(default=0)
     updated_at = models.DateTimeField(auto_now=True)
 

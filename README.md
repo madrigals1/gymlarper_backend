@@ -14,32 +14,55 @@ delta-sync protocol, so nothing is ever lost to a dead zone in the gym.
 ## Quick start
 
 ```bash
-cp .env.example .env          # then edit DJANGO_SECRET_KEY and POSTGRES_PASSWORD
-docker compose up --build
+cp .env.example .env          # set DJANGO_SECRET_KEY at minimum
+docker compose up -d --build
+docker compose logs -f api
+docker compose exec api python manage.py shell
 ```
 
-The API comes up on `http://127.0.0.1:${API_PORT}` (default `8000`), Postgres
-on an internal network only.
-
-```bash
-make test        # 88 tests, SQLite, no server needed
-make smoke       # 43 assertions against a running server over real HTTP
-make logs        # tail the API
-make shell       # Django shell in the container
-make db          # psql inside the Postgres container
-```
+The API comes up on `http://127.0.0.1:${API_PORT}` (default `8000`) and connects
+to the shared Postgres from `~/projects/postgres`. Migrations run on boot.
 
 Requires Docker with the Compose v2 plugin. The container installs strictly
-from `Pipfile.lock`, so a `docker compose up --build` needs no Python on the
-host.
+from `Pipfile.lock`, so you need no Python on the host at all.
 
-For local work without Docker:
+### Commands worth remembering
+
+Most of this is plain `docker compose`. These five aren't obvious:
 
 ```bash
-pip install pipenv
-make install        # pipenv install --deploy
-pipenv run python manage.py test --settings=config.test_settings
+# Tests: SQLite, so no database and no running server needed
+docker compose run --rm api python manage.py test --settings=config.test_settings
+
+# Migrations: -u root, or the container user cannot write the file
+docker compose run --rm -u root api python manage.py makemigrations
+
+# Production: -f skips docker-compose.override.yml (no bind mount, gunicorn)
+docker compose -f docker-compose.yml up -d --build
+
+# psql / pg_dump on the shared server.
+# -h 127.0.0.1 is required: its pg_hba.conf rejects local-socket connections.
+docker exec -it postgres psql -h 127.0.0.1 -U gymlarper_admin -d gymlarper
+docker exec postgres pg_dump -h 127.0.0.1 -U gymlarper_admin gymlarper | gzip > backup.sql.gz
 ```
+
+There is deliberately no Makefile. It would only wrap `docker compose`.
+
+### Running Python on the host instead
+
+Not currently possible, and worth knowing why: `Pipfile.lock` targets **Python
+3.13** to match the Docker image, and this machine has only **3.14**. So
+
+```bash
+pipenv install --deploy
+# Warning: Python 3.13 was not found on your system... Aborted!
+```
+
+Ubuntu 26.04's repositories ship only 3.14, and Python 3.14 support arrives in
+**Django 6.0** — so moving the lock to 3.14 would force a Django major upgrade.
+If you want a host-side loop later, install [pyenv](https://github.com/pyenv/pyenv)
+and `pyenv install 3.13`. Docker remains the environment that matches
+production.
 
 ---
 
@@ -74,9 +97,12 @@ The `gymlarper` database and `gymlarper_admin` role already exist there.
 Migrations run automatically on container start.
 
 ```bash
-make db       # psql prompt on the shared server
-make backup   # pg_dump just the gymlarper database
+docker exec -it postgres psql -h 127.0.0.1 -U gymlarper_admin -d gymlarper
+docker exec postgres pg_dump -h 127.0.0.1 -U gymlarper_admin gymlarper | gzip > backup-$(date +%F).sql.gz
 ```
+
+`-h 127.0.0.1` is required — that server's `pg_hba.conf` has no `local` entries,
+so socket connections are refused.
 
 ### Least privilege (recommended)
 
@@ -107,8 +133,8 @@ Managed with [pipenv](https://pipenv.pypa.io).
 After editing `Pipfile`:
 
 ```bash
-make lock          # pipenv lock  -> rewrites Pipfile.lock
-make install       # reinstall from the lock
+pipenv lock          # rewrites Pipfile.lock
+pipenv install --deploy   # reinstall from the lock
 ```
 
 Docker runs `pipenv install --deploy`, which installs *only* from the lock and
@@ -171,12 +197,12 @@ also accepts a comma-separated list if you prefer separate IDs.
 ```bash
 git clone <repo> /opt/gymlarper && cd /opt/gymlarper
 cp .env.example .env && $EDITOR .env      # secret key, DB password, domain, Google ID
-make prod-up
+docker compose -f docker-compose.yml up -d --build
 ```
 
-`make prod-up` runs `docker compose -f docker-compose.yml`, which deliberately
-skips `docker-compose.override.yml` — you get gunicorn with 3 workers instead of
-the dev server, and no bind mount of your source tree.
+Passing `-f docker-compose.yml` deliberately skips
+`docker-compose.override.yml` — you get gunicorn with 3 workers instead of the
+dev server, and no bind mount of your source tree.
 
 ### Wiring up your tunnel / proxy
 
@@ -244,22 +270,22 @@ docker compose exec api python manage.py createsuperuser
 ```
 
 **Backups** — the data lives in the shared Postgres, so back it up from there
-(or use `make backup`). Schedule it in cron alongside the other projects that
-share that server.
+using the `pg_dump` command above. Schedule it in cron alongside the other
+projects that share that server.
 
 ---
 
 ## Testing
 
 ```bash
-make test     # unit + API tests on in-memory SQLite
-make smoke    # end-to-end over HTTP against the running stack
+docker compose run --rm api python manage.py test --settings=config.test_settings
+python3 scripts/smoke_test.py --base-url http://127.0.0.1:8000 --id-token <token>
 ```
 
-`make smoke` needs a server whose Google verification is stubbed. The repo
-ships no auth bypass — the wrapper used for local smoke runs lives outside the
-source tree, so there is no code path that skips token verification in
-production.
+`scripts/smoke_test.py` drives the real HTTP API end to end. It needs a server
+whose Google verification is stubbed; the wrapper used for local runs lives
+outside the source tree, so there is no code path in this repository that skips
+token verification.
 
 ---
 

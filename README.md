@@ -56,9 +56,14 @@ and the Docker image uses it too, so both environments match exactly.
 
 ```bash
 pipenv install --deploy
-pipenv run python manage.py test --settings=config.test_settings   # 130 tests
+pipenv run python manage.py test --settings=test_settings          # 130 tests
 pipenv run python manage.py runserver
 ```
+
+`.env` sets `PIPENV_VENV_IN_PROJECT=1`, so the virtualenv lives at `./.venv`
+rather than in `~/.local/share/virtualenvs/`. pipenv reads that before choosing
+a location, so it needs no shell setup — and it means `rm -rf .venv` genuinely
+resets the environment.
 
 One catch: `POSTGRES_HOST=postgres` in `.env` is the *container* name on
 `database_network`, which does not resolve off the Docker mesh. For host-side

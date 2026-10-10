@@ -7,19 +7,19 @@ verify_ssl = true
 # Constraints express intent; Pipfile.lock pins the exact resolved versions
 # that Docker installs. Keep framework pins inside their minor series - a
 # Django or DRF major bump can break unrelated code without warning.
-django = "~=5.2.5"
-djangorestframework = "~=3.16.0"
-djangorestframework-simplejwt = "~=5.5.0"
-django-cors-headers = "~=4.7.0"
-django-filter = "~=25.1"
-psycopg = {version = "~=3.2.9", extras = ["binary"]}
-google-auth = "~=2.40.3"
+django = "~=6.1.2"
+djangorestframework = "~=3.18.3"
+djangorestframework-simplejwt = "~=5.5.1"
+django-cors-headers = "~=4.9.0"
+django-filter = "~=26.2"
+psycopg = {version = "~=3.3.6", extras = ["binary"]}
+google-auth = "~=2.61.0"
 python-dotenv = "~=1.1.1"
 gunicorn = "~=23.0.0"
-whitenoise = "~=6.9.0"
+whitenoise = "~=6.12.0"
 
 [requires]
-python_version = "3.13"
+python_version = "3.14"
 
 [dev-packages]
 # Dev-only tooling goes here and is installed with `pipenv install --dev`.

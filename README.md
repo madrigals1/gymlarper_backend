@@ -31,7 +31,8 @@ from `Pipfile.lock`, so you need no Python on the host at all.
 Most of this is plain `docker compose`. These five aren't obvious:
 
 ```bash
-# Tests: SQLite, so no database and no running server needed
+# Tests: SQLite, so no database and no running server needed.
+# Or run them on the host with: pipenv run python manage.py test --settings=config.test_settings
 docker compose run --rm api python manage.py test --settings=config.test_settings
 
 # Migrations: -u root, or the container user cannot write the file
@@ -50,19 +51,25 @@ There is deliberately no Makefile. It would only wrap `docker compose`.
 
 ### Running Python on the host instead
 
-Not currently possible, and worth knowing why: `Pipfile.lock` targets **Python
-3.13** to match the Docker image, and this machine has only **3.14**. So
+Supported. The lock targets **Python 3.14** — the same major your host has —
+and the Docker image uses it too, so both environments match exactly.
 
 ```bash
 pipenv install --deploy
-# Warning: Python 3.13 was not found on your system... Aborted!
+pipenv run python manage.py test --settings=config.test_settings   # 130 tests
+pipenv run python manage.py runserver
 ```
 
-Ubuntu 26.04's repositories ship only 3.14, and Python 3.14 support arrives in
-**Django 6.0** — so moving the lock to 3.14 would force a Django major upgrade.
-If you want a host-side loop later, install [pyenv](https://github.com/pyenv/pyenv)
-and `pyenv install 3.13`. Docker remains the environment that matches
-production.
+One catch: `POSTGRES_HOST=postgres` in `.env` is the *container* name on
+`database_network`, which does not resolve off the Docker mesh. For host-side
+runs override it — the shared Postgres publishes its port to the host:
+
+```bash
+POSTGRES_HOST=127.0.0.1 pipenv run python manage.py runserver
+```
+
+`pipenv run` reads `.env` automatically, so everything else (secret key, Google
+client ID) carries over unchanged.
 
 ---
 
@@ -127,14 +134,14 @@ other tooling relies on the superuser role — check first.
 
 Managed with [pipenv](https://pipenv.pypa.io).
 
-- `Pipfile` — human-editable constraints (`~=5.2.5` means ">=5.2.5, <5.3").
+- `Pipfile` — human-editable constraints (`~=6.1.2` means ">=6.1.2, <6.2").
 - `Pipfile.lock` — the exact resolved versions. **Commit it.**
 
 After editing `Pipfile`:
 
 ```bash
-pipenv lock          # rewrites Pipfile.lock
-pipenv install --deploy   # reinstall from the lock
+pipenv lock              # rewrites Pipfile.lock
+pipenv install --deploy  # reinstall from the lock (also what Docker runs)
 ```
 
 Docker runs `pipenv install --deploy`, which installs *only* from the lock and
@@ -148,8 +155,8 @@ Adding a dependency:
 pipenv install "django-filter~=25.1"
 ```
 
-The lock is generated against Python 3.13, which is what both the Docker image
-and `[requires]` target.
+The lock targets **Python 3.14**, which is what both the Docker base image and
+`[requires]` use. Changing either one means re-locking.
 apps/
   core/            SyncableModel base, SyncState sequence, error envelope
   accounts/        Google auth, profiles, device sessions

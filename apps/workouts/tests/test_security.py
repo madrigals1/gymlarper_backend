@@ -660,9 +660,7 @@ class ThrottlingTests(TestCase):
 
         # @action stashes its per-action kwargs on the decorated function.
         self.assertEqual(AuthViewSet.google.kwargs["throttle_scope"], "google_signin")
-        self.assertEqual(
-            AuthViewSet.refresh.kwargs["throttle_scope"], "token_refresh"
-        )
+        self.assertEqual(AuthViewSet.refresh.kwargs["throttle_scope"], "token_refresh")
         self.assertEqual(SyncViewSet.push.kwargs["throttle_scope"], "sync_push")
 
     def test_declared_throttle_scopes_reach_the_routed_views(self):

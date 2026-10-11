@@ -1,59 +1,24 @@
 """Django settings for the Gymlarper backend.
 
 Configuration is entirely environment-driven so the same image can run in dev
-and production. See `.env.example` for the full list of variables.
+and production. Every value comes from `config/env.py`; this module only maps
+them onto the names Django expects.
 """
 
 from __future__ import annotations
 
-import os
 from datetime import timedelta
-from pathlib import Path
 
-from django.core.exceptions import ImproperlyConfigured
-from dotenv import load_dotenv
-
-BASE_DIR = Path(__file__).resolve().parent.parent
-
-load_dotenv(BASE_DIR / ".env")
-
-
-def env(name: str, default: str | None = None) -> str:
-    value = os.environ.get(name)
-    if value is None or value == "":
-        return default if default is not None else ""
-    return value
-
-
-def env_bool(name: str, default: bool = False) -> bool:
-    return env(name, str(default)).strip().lower() in {"1", "true", "yes", "on"}
-
-
-def env_list(name: str, default: str = "") -> list[str]:
-    raw = env(name, default)
-    return [item.strip() for item in raw.split(",") if item.strip()]
-
+from config import env
 
 # --- Core --------------------------------------------------------------------
 
-DEBUG = env_bool("DJANGO_DEBUG", False)
+DEBUG = env.DJANGO_DEBUG
+SECRET_KEY = env.DJANGO_SECRET_KEY
+ALLOWED_HOSTS = env.DJANGO_ALLOWED_HOSTS
+BASE_DIR = env.BASE_DIR
 
-# A known default key means anyone can mint a valid access token, so refuse to
-# start without an explicit one whenever DEBUG is off.
-_secret_key = env("DJANGO_SECRET_KEY")
-if not _secret_key:
-    if not DEBUG:
-        raise ImproperlyConfigured(
-            "DJANGO_SECRET_KEY must be set when DJANGO_DEBUG is false. "
-            "Generate one with:\n"
-            '  python -c "import secrets; print(secrets.token_urlsafe(64))"'
-        )
-    _secret_key = "insecure-dev-only-key"
-SECRET_KEY = _secret_key
-
-ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1")
-# Public origin used to build absolute URLs (no trailing slash).
-PUBLIC_ORIGIN = env("DJANGO_PUBLIC_ORIGIN", "http://localhost:8000").rstrip("/")
+PUBLIC_ORIGIN = env.DJANGO_PUBLIC_ORIGIN
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -104,7 +69,7 @@ ASGI_APPLICATION = "config.asgi.application"
 
 # --- Database ----------------------------------------------------------------
 
-if env_bool("DJANGO_USE_SQLITE", False):
+if env.DJANGO_USE_SQLITE:
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
@@ -115,12 +80,12 @@ else:
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
-            "NAME": env("POSTGRES_DB", "gymlarper"),
-            "USER": env("POSTGRES_USER", "gymlarper"),
-            "PASSWORD": env("POSTGRES_PASSWORD", ""),
-            "HOST": env("POSTGRES_HOST", "db"),
-            "PORT": env("POSTGRES_PORT", "5432"),
-            "CONN_MAX_AGE": int(env("POSTGRES_CONN_MAX_AGE", "60")),
+            "NAME": env.POSTGRES_DB,
+            "USER": env.POSTGRES_USER,
+            "PASSWORD": env.POSTGRES_PASSWORD,
+            "HOST": env.POSTGRES_HOST,
+            "PORT": env.POSTGRES_PORT,
+            "CONN_MAX_AGE": env.POSTGRES_CONN_MAX_AGE,
             "OPTIONS": {"connect_timeout": 10},
         }
     }
@@ -135,7 +100,7 @@ AUTH_PASSWORD_VALIDATORS = [
 # --- i18n / static -----------------------------------------------------------
 
 LANGUAGE_CODE = "en-us"
-TIME_ZONE = env("DJANGO_TIME_ZONE", "UTC")
+TIME_ZONE = env.DJANGO_TIME_ZONE
 USE_I18N = True
 USE_TZ = True
 
@@ -169,20 +134,16 @@ REST_FRAMEWORK = {
     ),
     # DRF parses these as "<count>/<period>"; the period suffix is required.
     "DEFAULT_THROTTLE_RATES": {
-        "anon": f"{env('THROTTLE_ANON_PER_MIN', '120')}/min",
-        "google_signin": f"{env('THROTTLE_SIGNIN_PER_MIN', '20')}/min",
-        "token_refresh": f"{env('THROTTLE_REFRESH_PER_MIN', '60')}/min",
-        "sync_push": f"{env('THROTTLE_PUSH_PER_MIN', '240')}/min",
+        "anon": f"{env.THROTTLE_ANON_PER_MIN}/min",
+        "google_signin": f"{env.THROTTLE_SIGNIN_PER_MIN}/min",
+        "token_refresh": f"{env.THROTTLE_REFRESH_PER_MIN}/min",
+        "sync_push": f"{env.THROTTLE_PUSH_PER_MIN}/min",
     },
 }
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(
-        minutes=int(env("ACCESS_TOKEN_LIFETIME_MINUTES", "60"))
-    ),
-    "REFRESH_TOKEN_LIFETIME": timedelta(
-        days=int(env("REFRESH_TOKEN_LIFETIME_DAYS", "30"))
-    ),
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=env.ACCESS_TOKEN_LIFETIME_MINUTES),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=env.REFRESH_TOKEN_LIFETIME_DAYS),
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": False,
     "AUTH_HEADER_TYPES": ("Bearer",),
@@ -192,36 +153,32 @@ SIMPLE_JWT = {
 
 # --- CORS --------------------------------------------------------------------
 
-CORS_ALLOWED_ORIGINS = env_list(
-    "DJANGO_CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:8080"
-)
+CORS_ALLOWED_ORIGINS = env.DJANGO_CORS_ALLOWED_ORIGINS
 CORS_ALLOW_CREDENTIALS = True
 # Admin/login forms are cookie-authenticated, so they need CSRF trust too.
-CSRF_TRUSTED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS") or CORS_ALLOWED_ORIGINS
+CSRF_TRUSTED_ORIGINS = env.DJANGO_CSRF_TRUSTED_ORIGINS or CORS_ALLOWED_ORIGINS
 
 # --- Google OAuth2 -----------------------------------------------------------
 
-GOOGLE_CLIENT_IDS = env_list("GOOGLE_CLIENT_IDS")
-GOOGLE_HD_ORG_DOMAIN = env("GOOGLE_HD_ORG_DOMAIN")
+GOOGLE_CLIENT_IDS = env.GOOGLE_CLIENT_IDS
+GOOGLE_HD_ORG_DOMAIN = env.GOOGLE_HD_ORG_DOMAIN
 
 # --- Security ----------------------------------------------------------------
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
-SECURE_SSL_REDIRECT = env_bool("DJANGO_SECURE_SSL_REDIRECT", not DEBUG)
+SECURE_SSL_REDIRECT = env.DJANGO_SECURE_SSL_REDIRECT
 SESSION_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SECURE = not DEBUG
-SECURE_HSTS_SECONDS = int(
-    env("DJANGO_SECURE_HSTS_SECONDS", "0" if DEBUG else "31536000")
-)
+SECURE_HSTS_SECONDS = env.DJANGO_SECURE_HSTS_SECONDS
 SECURE_HSTS_INCLUDE_SUBDOMAINS = not DEBUG
 SECURE_HSTS_PRELOAD = not DEBUG
 X_FRAME_OPTIONS = "DENY"
 
-DATA_UPLOAD_MAX_MEMORY_SIZE = int(env("DJANGO_MAX_UPLOAD_BYTES", str(10 * 1024 * 1024)))
+DATA_UPLOAD_MAX_MEMORY_SIZE = env.DJANGO_MAX_UPLOAD_BYTES
 
 # --- Logging -----------------------------------------------------------------
 
-LOG_LEVEL = env("LOG_LEVEL", "INFO").upper()
+LOG_LEVEL = env.LOG_LEVEL
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,

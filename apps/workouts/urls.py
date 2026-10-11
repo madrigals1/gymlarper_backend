@@ -1,7 +1,15 @@
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
+from apps.core.routers import ActionOnlyRouter
+
 from . import views
+
+# Routed rather than hand-wired with as_view(): only a router applies the
+# per-action kwargs from @action (throttle_scope, ...).
+action_router = ActionOnlyRouter()
+action_router.register("sync", views.SyncViewSet, basename="sync")
+action_router.register("dashboard", views.DashboardViewSet, basename="dashboard")
 
 router = DefaultRouter()
 router.register("locations", views.GymLocationViewSet, basename="location")
@@ -15,45 +23,6 @@ router.register(
 router.register("sets", views.WorkoutSetViewSet, basename="workout-set")
 
 urlpatterns = [
-    path(
-        "sync/push/",
-        views.SyncViewSet.as_view({"post": "push"}),
-        name="sync-push",
-    ),
-    path(
-        "sync/pull/",
-        views.SyncViewSet.as_view({"get": "pull"}),
-        name="sync-pull",
-    ),
-    path(
-        "dashboard/summary/",
-        views.DashboardViewSet.as_view({"get": "summary"}),
-        name="dashboard-summary",
-    ),
-    path(
-        "dashboard/weekly-volume/",
-        views.DashboardViewSet.as_view({"get": "weekly_volume"}),
-        name="weekly-volume",
-    ),
-    path(
-        "dashboard/personal-records/",
-        views.DashboardViewSet.as_view({"get": "personal_records"}),
-        name="personal-records",
-    ),
-    path(
-        "dashboard/volume-by-muscle/",
-        views.DashboardViewSet.as_view({"get": "volume_by_muscle"}),
-        name="volume-by-muscle",
-    ),
-    path(
-        "dashboard/machines/",
-        views.DashboardViewSet.as_view({"get": "machines"}),
-        name="dashboard-machines",
-    ),
-    path(
-        "dashboard/exercise-progress/<uuid:exercise_id>/",
-        views.DashboardViewSet.as_view({"get": "exercise_progress"}),
-        name="exercise-progress",
-    ),
+    path("", include(action_router.urls)),
     path("", include(router.urls)),
 ]

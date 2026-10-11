@@ -618,7 +618,7 @@ class ThrottlingTests(TestCase):
         from django.core.cache import cache
         from rest_framework.throttling import ScopedRateThrottle
 
-        from apps.accounts.views import GoogleSignInView
+        from apps.accounts.views import AuthViewSet
 
         claims = {
             "iss": "https://accounts.google.com",
@@ -641,7 +641,7 @@ class ThrottlingTests(TestCase):
                 ScopedRateThrottle.THROTTLE_RATES, {"google_signin": "3/min"}
             ):
                 with mock.patch.object(
-                    GoogleSignInView, "throttle_classes", [ScopedRateThrottle]
+                    AuthViewSet, "throttle_classes", [ScopedRateThrottle]
                 ):
                     codes = [
                         api.post(
@@ -655,12 +655,30 @@ class ThrottlingTests(TestCase):
         self.assertIn(429, codes, f"sign-in was never throttled: {codes}")
 
     def test_auth_endpoints_declare_throttle_scopes(self):
-        from apps.accounts.views import GoogleSignInView, RefreshView
-        from apps.workouts.views import SyncPushView
+        from apps.accounts.views import AuthViewSet
+        from apps.workouts.views import SyncViewSet
 
-        self.assertEqual(GoogleSignInView.throttle_scope, "google_signin")
-        self.assertEqual(RefreshView.throttle_scope, "token_refresh")
-        self.assertEqual(SyncPushView.throttle_scope, "sync_push")
+        # @action stashes its per-action kwargs on the decorated function.
+        self.assertEqual(AuthViewSet.google.kwargs["throttle_scope"], "google_signin")
+        self.assertEqual(
+            AuthViewSet.refresh.kwargs["throttle_scope"], "token_refresh"
+        )
+        self.assertEqual(SyncViewSet.push.kwargs["throttle_scope"], "sync_push")
+
+    def test_declared_throttle_scopes_reach_the_routed_views(self):
+        """Only a router copies @action kwargs onto the view, so wiring these
+        endpoints with a hand-written as_view() silently drops them."""
+        from django.urls import resolve
+
+        expected = {
+            "/api/v1/auth/google/": "google_signin",
+            "/api/v1/auth/refresh/": "token_refresh",
+            "/api/v1/sync/push/": "sync_push",
+        }
+        for path, scope in expected.items():
+            with self.subTest(path=path):
+                view = resolve(path).func
+                self.assertEqual(view.initkwargs.get("throttle_scope"), scope)
 
     def test_configured_rates_are_well_formed(self):
         from django.conf import settings

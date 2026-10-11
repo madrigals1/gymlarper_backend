@@ -10,7 +10,7 @@ from django.db import IntegrityError, transaction
 from django.utils import timezone
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet, ViewSet
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -140,6 +140,10 @@ class AuthViewSet(ViewSet):
     viewset still keeps the whole auth surface in a single class and lets the
     router own the URL map.
     """
+
+    # Declared so @action(throttle_scope=...) has an attribute to override, and
+    # so actions without a scope are left alone by ScopedRateThrottle.
+    throttle_scope = None
 
     @action(
         detail=False,

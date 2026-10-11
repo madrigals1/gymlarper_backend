@@ -656,6 +656,10 @@ class WorkoutSetViewSet(viewsets.ModelViewSet):
 class SyncViewSet(ViewSet):
     """Offline-first sync: push local edits, pull server changes."""
 
+    # Declared so @action(throttle_scope=...) has an attribute to override, and
+    # so actions without a scope are left alone by ScopedRateThrottle.
+    throttle_scope = None
+
     @action(
         detail=False,
         methods=["post"],

@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.http import JsonResponse
 from django.urls import include, path
+from django.views.generic.base import RedirectView
 
 
 def healthcheck(_request):
@@ -9,6 +10,10 @@ def healthcheck(_request):
 
 
 urlpatterns = [
+    # The root is not part of the API surface; send visitors to the versioned
+    # root instead of a 404. Temporary (302) so a future /api/v2/ can take over
+    # without clients having cached a permanent redirect.
+    path("", RedirectView.as_view(url="/api/v1/"), name="root"),
     path("admin/", admin.site.urls),
     path("healthz", healthcheck, name="healthcheck"),
     path("api/v1/", include(("apps.accounts.urls", "accounts"), namespace="accounts")),

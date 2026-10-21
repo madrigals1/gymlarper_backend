@@ -4,6 +4,9 @@ Base URL: `https://your-domain/api/v1`
 Everything except `/auth/google/`, `/auth/refresh/` and `/healthz` requires
 `Authorization: Bearer <access_token>`.
 
+`GET /` redirects (302) to `/api/v1/`, so the bare domain lands on the API
+root instead of a 404.
+
 Responses are JSON. Timestamps are ISO-8601 UTC.
 
 ---
